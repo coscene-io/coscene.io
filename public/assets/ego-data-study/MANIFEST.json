@@ -1,0 +1,33 @@
+{
+  "dataset": "https://huggingface.co/datasets/OpenGraphLabs-Research/manus-egocentric-sample",
+  "revision": "05cfc068ad0388f7e186606e0fcefb18c4634c0e",
+  "license": "Apache-2.0",
+  "clips": [
+    {
+      "id": "pack",
+      "episode": 0,
+      "frames": 1158,
+      "duration": 38.6,
+      "videoOriginalSha256": "42729ce310f40130480860bb7f01ab33fd70fba29c41ece5f653384c293165fd",
+      "parquetSha256": "acd0b44021e56e37fb0478cb108e8b74b3ea80beb68e28acf454893695931abd",
+      "derivatives": {
+        "pack.mp4": "9fb95e94251e006f30a878c4a77464e2005de1506ae2362b221b376d3319349e",
+        "pack.webp": "edb0fa5be35e79c0bce1c4a7789f45b76241d0efbf4371d1389c11a562ec6ab1",
+        "pack-joints.json": "27931b8ed72d7eabbf62debec536d318d4765363b1ac0747b621c616ebcaf0b4"
+      }
+    },
+    {
+      "id": "fold",
+      "episode": 1,
+      "frames": 852,
+      "duration": 28.4,
+      "videoOriginalSha256": "fa0255572ef07d37662c5f59f8ee84621a14302d5524d625e92575c05b4b1d6e",
+      "parquetSha256": "f72675ab3012ed60fd012ed59d5fb607fb8107f6e85f7126d22aad3d74acd024",
+      "derivatives": {
+        "fold.mp4": "3770033e8fe93c26fc8fde47e70a96766514a8a5c7b6496ddaecdb20fdc1e316",
+        "fold.webp": "c17f141354a13d7ab583804e521bc643944fa62dd0966be747ccb1228fd5139a",
+        "fold-joints.json": "8fab866a80fb125d0f451950a3201961aa55979ef60aed4e9a726726926f226e"
+      }
+    }
+  ]
+}

@@ -1,0 +1,178 @@
+html:has(body.scene-handoff-study-body),
+body.scene-handoff-study-body,
+body.scene-handoff-study-body #root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  background: #030306;
+}
+
+.scene-handoff-study {
+  background: #030306;
+}
+
+.scene-handoff-sequence {
+  --handoff-radius: 28px;
+  position: relative;
+  overflow: clip;
+  background: #030306;
+}
+
+.scene-handoff-sequence__platform {
+  position: relative;
+  z-index: 3;
+}
+
+.scene-handoff-sequence__platform .platform-pin {
+  border-radius: 0 0 var(--handoff-radius) var(--handoff-radius);
+  box-shadow: 0 28px 68px rgba(0, 0, 0, 0.38);
+}
+
+.scene-handoff-sequence__earth-track {
+  position: relative;
+  z-index: 2;
+  height: 240svh;
+  margin-top: -100svh;
+  background: #020305;
+}
+
+.scene-handoff-sequence__earth-pin {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100svh;
+  min-height: 694px;
+  overflow: hidden;
+  border-radius: 0 0 var(--handoff-radius) var(--handoff-radius);
+  background: #020305;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.42);
+}
+
+.scene-handoff-sequence__earth-pin .data-assets-study--embedded {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+}
+
+.scene-handoff-sequence__earth-pin .data-assets-copy,
+.scene-handoff-sequence__earth-pin .city-title,
+.scene-handoff-sequence__earth-pin .asset-cluster {
+  will-change: opacity, transform;
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-stage='covered'] .data-assets-copy,
+.scene-handoff-sequence__earth-pin[data-earth-stage='covered'] .city-title,
+.scene-handoff-sequence__earth-pin[data-earth-stage='covered'] .asset-cluster,
+.scene-handoff-sequence__earth-pin[data-earth-stage='copy'] .city-title,
+.scene-handoff-sequence__earth-pin[data-earth-stage='copy'] .asset-cluster {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-stage='covered'] .data-assets-copy {
+  transform: translate3d(0, 18px, 0);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-stage='covered'] .city-title,
+.scene-handoff-sequence__earth-pin[data-earth-stage='copy'] .city-title {
+  transform: translate3d(0, 12px, 0);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-stage='covered'] .asset-cluster,
+.scene-handoff-sequence__earth-pin[data-earth-stage='copy'] .asset-cluster {
+  transform: translate3d(28px, 0, 0);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-stage='copy'] .data-assets-copy,
+.scene-handoff-sequence__earth-pin[data-earth-stage='full'] .data-assets-copy {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 620ms ease,
+    transform 820ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-stage='full'] .city-title {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 560ms ease,
+    transform 720ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-stage='full'] .asset-cluster {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 680ms 90ms ease,
+    transform 840ms 90ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-retiring='true'] .data-assets-copy,
+.scene-handoff-sequence__earth-pin[data-earth-retiring='true'] .city-title,
+.scene-handoff-sequence__earth-pin[data-earth-retiring='true'] .asset-cluster {
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 420ms ease,
+    transform 520ms cubic-bezier(0.3, 0, 0.6, 1);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-retiring='true'] .data-assets-copy,
+.scene-handoff-sequence__earth-pin[data-earth-retiring='true'] .city-title {
+  transform: translate3d(0, -12px, 0);
+}
+
+.scene-handoff-sequence__earth-pin[data-earth-retiring='true'] .asset-cluster {
+  transform: translate3d(20px, 0, 0);
+}
+
+.scene-handoff-sequence__delivery {
+  position: relative;
+  z-index: 1;
+  margin-top: -100svh;
+  background: #030306;
+}
+
+.scene-handoff-sequence__delivery .delivery-material-study {
+  min-height: 100%;
+}
+
+@media (max-width: 1180px) {
+  .scene-handoff-sequence {
+    --handoff-radius: 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  .scene-handoff-sequence {
+    --handoff-radius: 12px;
+  }
+
+  .scene-handoff-sequence__earth-track {
+    height: 220svh;
+  }
+
+  .scene-handoff-sequence__earth-pin {
+    min-height: 610px;
+  }
+
+  .scene-handoff-sequence__delivery .delivery-material-value--semantic {
+    top: max(8%, 68px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-handoff-sequence__platform .platform-pin,
+  .scene-handoff-sequence__earth-pin {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .scene-handoff-sequence__earth-pin .data-assets-copy,
+  .scene-handoff-sequence__earth-pin .city-title,
+  .scene-handoff-sequence__earth-pin .asset-cluster {
+    transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+}

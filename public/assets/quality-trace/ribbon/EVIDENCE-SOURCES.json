@@ -1,0 +1,48 @@
+[
+  {
+    "file": "grasp-evidence.webp",
+    "source": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/grasp-head-45.png",
+    "crop": [
+      55,
+      30,
+      594,
+      304
+    ],
+    "sourceDimensions": [
+      632,
+      304
+    ],
+    "operation": "Crop recording side gutters and the 30px FPS-overlay row. No retouching, enhancement or added annotation. Both grippers and task object retained."
+  },
+  {
+    "file": "place-evidence.webp",
+    "source": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/hero-place-68.png",
+    "crop": [
+      55,
+      30,
+      594,
+      304
+    ],
+    "sourceDimensions": [
+      633,
+      306
+    ],
+    "operation": "Crop recording side gutters and the 30px FPS-overlay row. No retouching, enhancement or added annotation. Both grippers and task object retained."
+  },
+  {
+    "file": "C00 poster / inline video",
+    "source": "grasp-head-45.png / task-grasp-motion.mp4",
+    "sourceDimensions": [
+      632,
+      304
+    ],
+    "crop": [
+      55,
+      30,
+      594,
+      304
+    ],
+    "implementation": "src/quality-ribbon-card-layout.ts",
+    "operation": "Same display crop applied to still and live video; originals unchanged."
+  }
+]

@@ -1,0 +1,15 @@
+.mi-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; min-width: 0; border: 0; padding: 6px 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mi-select-value { min-width: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.mi-select-chevron { display: flex; flex: none; transition: transform 120ms; }
+.mi-select-trigger[data-state=open] .mi-select-chevron { transform: rotate(180deg); }
+.mi-select-trigger:disabled { opacity: .45; cursor: default; }
+.mi-select-menu { z-index: 30; box-sizing: border-box; width: max(244px, var(--radix-select-trigger-width)); max-width: calc(100vw - 24px); max-height: min(368px, var(--radix-select-content-available-height)); overflow: hidden; color: #101010; background: #fff; border-radius: 6px; box-shadow: 0 12px 38px #00000026; font: 500 15px/1.5 MiniatureBricolage, 'PingFang SC', 'Microsoft YaHei', sans-serif; letter-spacing: 0; color-scheme: light; }
+.mi-select-options { padding: 6px; }
+.mi-select-option { position: relative; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 9px 34px 9px 12px; border-radius: 3px; outline: 0; cursor: pointer; user-select: none; overflow-wrap: anywhere; }
+.mi-select-option[data-state=checked] { font-weight: 700; background: #f0f1ee; }
+.mi-select-option[data-highlighted] { background: #101010; color: #fff; }
+.mi-select-option[data-disabled] { opacity: .4; cursor: default; }
+.mi-select-index { flex: 0 0 22px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mi-select-check { position: absolute; right: 10px; display: flex; }
+.mi-select-scroll { display: flex; justify-content: center; align-items: center; height: 24px; background: #fff; color: #101010; }
+@media (prefers-reduced-motion: reduce) { .mi-select-chevron { transition: none; } }

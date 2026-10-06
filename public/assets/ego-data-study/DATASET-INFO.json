@@ -1,0 +1,89 @@
+{
+  "codebase_version": "v2.1",
+  "robot_type": "manus_gloves",
+  "fps": 30,
+  "total_episodes": 20,
+  "total_frames": 96544,
+  "total_tasks": 2,
+  "total_videos": 20,
+  "total_chunks": 1,
+  "chunks_size": 1000,
+  "data_path": "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet",
+  "video_path": "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4",
+  "features": {
+    "episode_index": {
+      "dtype": "int64",
+      "shape": [
+        1
+      ]
+    },
+    "frame_index": {
+      "dtype": "int64",
+      "shape": [
+        1
+      ]
+    },
+    "timestamp": {
+      "dtype": "float32",
+      "shape": [
+        1
+      ]
+    },
+    "task_index": {
+      "dtype": "int64",
+      "shape": [
+        1
+      ]
+    },
+    "observation.images.egocentric": {
+      "dtype": "video",
+      "shape": [
+        1080,
+        1920,
+        3
+      ],
+      "video_info": {
+        "video.fps": 30.0,
+        "video.codec": "av1",
+        "video.pix_fmt": "yuv420p",
+        "video.is_depth_map": false,
+        "has_audio": false
+      }
+    },
+    "observation.state.hand_joints": {
+      "dtype": "float32",
+      "shape": [
+        150
+      ]
+    },
+    "observation.state.finger_angles": {
+      "dtype": "float32",
+      "shape": [
+        40
+      ]
+    },
+    "observation.state.gestures": {
+      "dtype": "float32",
+      "shape": [
+        26
+      ]
+    },
+    "observation.state.imu": {
+      "dtype": "float32",
+      "shape": [
+        6
+      ]
+    }
+  },
+  "depth": {
+    "path": "depth/episode_{episode_index:06d}.bin",
+    "dtype": "uint16",
+    "shape": [
+      400,
+      640
+    ],
+    "unit": "mm",
+    "storage": "episode-based",
+    "description": "Raw 16-bit depth preserved per episode"
+  }
+}

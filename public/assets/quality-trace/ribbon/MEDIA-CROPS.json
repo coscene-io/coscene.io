@@ -1,0 +1,106 @@
+{
+  "prepared_date": "2026-09-20",
+  "source_video": "output/data-infrastructure-intake-20260914/source-20260919-fridge/20260918-153822.mp4",
+  "coordinate_convention": "pixel xyxy; left/top inclusive, right/bottom exclusive; source_video_crop_xyxy refers to the full 1916×874 recording frame",
+  "assets": [
+    {
+      "file": "left-wrist-45.webp",
+      "source": "multiview-45.png",
+      "crop_xyxy": [
+        2,
+        384,
+        417,
+        599
+      ],
+      "source_recording_seconds": 45,
+      "source_video_crop_xyxy": [
+        335,
+        418,
+        750,
+        633
+      ],
+      "camera_topic": "/astribot_camera/left_wrist_rgbd/color_compress/compressed/h264",
+      "view_identity": "左腕 RGB-D 的彩色视图",
+      "caveat": "保留录屏中原有的黑底字幕残段；字幕横跨左腕画面，若完全裁掉会丢失夹爪与主要场景。只裁去面板标题与 FPS，未修补或重建被字幕遮挡的像素。",
+      "source_file": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/multiview-45.png",
+      "source_sha256": "c259b50eda503309cf18a49d4fd74c553075e914deb5aac0e654f234119c06b7",
+      "source_dimensions": [
+        1301,
+        610
+      ],
+      "output_file": "public/assets/quality-trace/ribbon/left-wrist-45.webp",
+      "output_dimensions": [
+        415,
+        215
+      ],
+      "output_sha256": "b07b8c3b84c0b48d0d7ea74f848e0f121333d65c6eee1819851b6b0db9e5c03a",
+      "operation": "rectangular crop and WebP encoding only; no resize, retouch, generative fill, annotations, color enhancement or reconstruction"
+    },
+    {
+      "file": "right-wrist-45.webp",
+      "source": "multiview-45.png",
+      "crop_xyxy": [
+        856,
+        385,
+        1300,
+        608
+      ],
+      "source_recording_seconds": 45,
+      "source_video_crop_xyxy": [
+        1189,
+        419,
+        1633,
+        642
+      ],
+      "camera_topic": "/astribot_camera/right_wrist_rgbd/color_compress/compressed/h264",
+      "view_identity": "右腕 RGB-D 的彩色视图",
+      "caveat": "顶部裁去面板标题与 FPS，左侧仅移除白色面板留边；原生录屏视图分辨率有限，不能据此测量原始相机画幅或验收质量。",
+      "source_file": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/multiview-45.png",
+      "source_sha256": "c259b50eda503309cf18a49d4fd74c553075e914deb5aac0e654f234119c06b7",
+      "source_dimensions": [
+        1301,
+        610
+      ],
+      "output_file": "public/assets/quality-trace/ribbon/right-wrist-45.webp",
+      "output_dimensions": [
+        444,
+        223
+      ],
+      "output_sha256": "50298a5395b868761d0683e9dbb25b22e12b00dd719a63abea9d88125a2ed51c",
+      "operation": "rectangular crop and WebP encoding only; no resize, retouch, generative fill, annotations, color enhancement or reconstruction"
+    },
+    {
+      "file": "kitchen-scene.webp",
+      "source": "scene-fridge-04.png",
+      "crop_xyxy": [
+        331,
+        30,
+        659,
+        278
+      ],
+      "source_recording_seconds": 4,
+      "source_video_crop_xyxy": [
+        665,
+        89,
+        993,
+        337
+      ],
+      "camera_topic": "/astribot_camera/head_stereo/color_compress/compressed/h264",
+      "view_identity": "头部双目并排画面中的右半幅",
+      "caveat": "使用双目显示中的单个半幅，未拼接左右眼；可看到冰箱、地面、窗边、桌边与机器人夹爪。时间为录屏4秒，与45秒腕部图不同。尺寸是屏幕录制裁图，不是相机原生分辨率。",
+      "source_file": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/scene-fridge-04.png",
+      "source_sha256": "bc342adbf014df9671875bc0dae784f408c245d4b46429f04323bb811ffcdd9e",
+      "source_dimensions": [
+        660,
+        281
+      ],
+      "output_file": "public/assets/quality-trace/ribbon/kitchen-scene.webp",
+      "output_dimensions": [
+        328,
+        248
+      ],
+      "output_sha256": "a91a5984b32388eddf47478e8bb7db15d08eef46fbb66d7c0c2985ce3670d6b2",
+      "operation": "rectangular crop and WebP encoding only; no resize, retouch, generative fill, annotations, color enhancement or reconstruction"
+    }
+  ]
+}

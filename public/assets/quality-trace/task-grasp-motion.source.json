@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "prepared_date": "2026-09-19",
+  "asset_url": "/assets/quality-trace/task-grasp-motion.mp4",
+  "origin": {
+    "kind": "user-supplied local recording; archived original unchanged",
+    "original_archive_name": "带标注的机器人冰箱收纳视频.mp4.zip",
+    "original_archive_sha256": "5d9bd15db9358b7bf28adbdcfb146491e1f09268398e82322aed7df4dfbc0880",
+    "recording_file": "output/data-infrastructure-intake-20260914/source-20260919-fridge/20260918-153822.mp4",
+    "recording_sha256": "c7955a10269a4defaf8b3c7f3fc8eba433e50de6da8d8f4c07b7844150340737",
+    "archive_manifest": "output/data-infrastructure-intake-20260914/source-20260919-fridge/MANIFEST.json",
+    "derivative_manifest": "output/data-infrastructure-intake-20260914/source-20260919-fridge/DERIVATIVES.json",
+    "view": "head RGB panel from the source recording",
+    "source_recording_seconds": {
+      "start_inclusive": 44,
+      "end_exclusive": 48
+    },
+    "time_basis": "Recording-file seconds, not the source player record clock or collection timestamp.",
+    "crop_xywh": [
+      1000,
+      60,
+      632,
+      304
+    ],
+    "crop_xyxy_exclusive": [
+      1000,
+      60,
+      1632,
+      364
+    ]
+  },
+  "immediate_source": {
+    "file": "output/data-infrastructure-intake-20260914/source-20260919-fridge/clips/grasp-44-48.mp4",
+    "sha256": "e54210b6803b2a0fef48f19b9bfe2d71862d3ed9ecab512139ba578475e04001",
+    "duration_seconds": 4,
+    "dimensions": [
+      632,
+      304
+    ],
+    "frame_rate": "30/1",
+    "operation": "Reuse the already approved head-RGB crop; no further crop, scale, spatial transform, overlay, reconstruction or motion interpolation."
+  },
+  "approved_still": {
+    "file": "public/assets/quality-trace/grasp-head-45.png",
+    "sha256": "c3ef3ca2ebd3f4b0ca6e73620f9f28372e11b223d9c3ca126de29933143e88c4",
+    "dimensions": [
+      632,
+      304
+    ],
+    "source_recording_seconds": 45,
+    "archived_file": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/grasp-head-45.png",
+    "archived_sha256": "d22f68d7ac5af78c125b4a225ba54c0fd9587bf7598303b7d9f2730568650081",
+    "public_and_archived_still_decoded_pixels_identical": true
+  },
+  "output": {
+    "file": "public/assets/quality-trace/task-grasp-motion.mp4",
+    "sha256": "c6394b7af69afaaaa58858733e85f9af9424d80f25b6c2675934b757571c5c06",
+    "bytes": 497781,
+    "duration_seconds": 4.0,
+    "width": 632,
+    "height": 304,
+    "sample_aspect_ratio": "1:1",
+    "display_aspect_ratio": "79:38",
+    "codec": "h264",
+    "profile": "High",
+    "pixel_format": "yuv420p",
+    "frame_rate": "24/1",
+    "frame_count": 96,
+    "audio_streams": 0,
+    "color_primaries": "bt709",
+    "color_transfer": "bt709",
+    "color_space": "bt709",
+    "keyframe_interval_frames": 12,
+    "b_frames": 0,
+    "faststart": true,
+    "output_time_zero_source_recording_seconds": 44,
+    "final_frame_presentation_seconds": 3.9583333333333335,
+    "encoding_command": "/Users/duansuling/bin/ffmpeg -hide_banner -loglevel warning -y -i output/data-infrastructure-intake-20260914/source-20260919-fridge/clips/grasp-44-48.mp4 -map 0:v:0 -an -sn -dn -map_metadata -1 -vf fps=24 -t 4 -c:v libx264 -preset medium -crf 21 -pix_fmt yuv420p -g 12 -keyint_min 12 -sc_threshold 0 -bf 0 -movflags +faststart public/assets/quality-trace/task-grasp-motion.mp4"
+  },
+  "validation": {
+    "full_decode_completed_without_errors": true,
+    "mp4_moov_offset": 32,
+    "mp4_mdat_offset": 1287,
+    "moov_precedes_mdat": true,
+    "visually_compared_output_time_seconds": 1,
+    "corresponding_source_recording_seconds": 45,
+    "visual_result": "Same head RGB panel, complete 632x304 framing, matching robot hands/table/box composition as the approved still.",
+    "decoded_frame_mean_absolute_rgb_difference_vs_approved_still": [
+      2.034097060293138,
+      1.7858719187208527,
+      2.2126915389740174
+    ],
+    "difference_note": "Small pixel differences follow lossy H.264 re-encoding; this is a file-comparison diagnostic, not a data-quality or task-success score.",
+    "source_recording_and_immediate_clip_sha256_unchanged_after_export": true
+  },
+  "canvas_usage": {
+    "fit": "contain",
+    "requested_rect_xywh": [
+      56,
+      150,
+      1088,
+      456
+    ],
+    "contained_image_rect_xywh": [
+      126,
+      150,
+      948,
+      456
+    ],
+    "playback": "Paused; seek from user progress. No autoplay.",
+    "notes": "Retain the existing source FPS overlay. It is not an added label and does not describe the derivative 24fps encoding."
+  }
+}

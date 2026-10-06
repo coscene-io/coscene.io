@@ -1,0 +1,33 @@
+{
+  "source": "用户提供的带标注机器人冰箱收纳视频；此前归档并抽帧",
+  "assets": [
+    {
+      "asset": "grasp-head-45.png",
+      "source": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/grasp-head-45.png",
+      "treatment": "图像像素原样复制，卡面中保持图像比例；PNG 元数据记录素材来源",
+      "source_sha256": "d22f68d7ac5af78c125b4a225ba54c0fd9587bf7598303b7d9f2730568650081",
+      "asset_sha256": "c3ef3ca2ebd3f4b0ca6e73620f9f28372e11b223d9c3ca126de29933143e88c4"
+    },
+    {
+      "asset": "scene-pair.png",
+      "source": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/scene-pair.png",
+      "treatment": "图像像素原样复制，卡面中保持图像比例；PNG 元数据记录素材来源",
+      "source_sha256": "30ab9c88dc10057fb8b90e58a9710210c6d87de8a2719ee77fb8eaffbc4ea3cb",
+      "asset_sha256": "a3d81676f5d52c8a88980c5dcdfc499f1a374001b4eedf05e15019f0a6c70222"
+    },
+    {
+      "asset": "multiview-45.png",
+      "source": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/multiview-45.png",
+      "treatment": "图像像素原样复制，卡面中保持图像比例；PNG 元数据记录素材来源",
+      "source_sha256": "c259b50eda503309cf18a49d4fd74c553075e914deb5aac0e654f234119c06b7",
+      "asset_sha256": "4bf891a9f41f1881be93ead65e0b06a2fcbe73e1ddb0a45908add33722913a46"
+    },
+    {
+      "asset": "proof-pair.png",
+      "source": "output/data-infrastructure-intake-20260914/source-20260919-fridge/stills/proof-pair.png",
+      "treatment": "图像像素原样复制，卡面中保持图像比例；PNG 元数据记录素材来源",
+      "source_sha256": "3015b321f490e805c42c2bd834351c493ba7506856f90c88d7fd4ca69f10db63",
+      "asset_sha256": "1d94f030fe11426772f303a2edadcdae626f1fb23a98eb4943d5afd0f456741b"
+    }
+  ]
+}

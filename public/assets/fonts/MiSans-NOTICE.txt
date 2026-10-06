@@ -1,0 +1,11 @@
+MiSans Heavy city-title subset
+
+Official distribution page:
+https://hyperos.mi.com/font/zh/download/
+
+Official archive:
+https://hyperos.mi.com/font-download/MiSans.zip
+
+The bundled WOFF contains only the Chinese characters used by the current
+city-title component. Refer to the official distribution page for the font's
+current authorization terms.

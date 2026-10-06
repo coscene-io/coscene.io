@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/robot-data-sources.css" />
+    <title>模型与素材说明 | 刻行时空</title>
+  </head>
+  <body>
+    <header><a href="/">KEXING SPACE</a><a href="/training/robot-data/">返回真机数据</a></header>
+    <main>
+      <h1>模型与素材说明</h1>
+      <p>页面中的空间、本体姿态、任务阶段与腕部装配采用三维示意表达。具体采集本体、末端配置、任务范围与交付内容，以项目方案和数据样例为准。</p>
+      <p><a href="https://data-catalog.coscene.io/en/" target="_blank" rel="noreferrer">刻行数据样例</a>与场景示意分别呈现。示意模型不代表厂商背书，也不作为机器人执行结果或训练收益的证明。</p>
+      <section><h2>机器人模型</h2>
+        <dl>
+          <dt>宇树 G1、H2</dt><dd>基于 Unitree Robotics 的 <a href="https://github.com/unitreerobotics/unitree_mujoco" target="_blank" rel="noreferrer">unitree_mujoco</a> 模型，按 BSD-3-Clause 许可使用。展示版本调整了材质、静态姿态及网格包装；H2 面部为本地制作的示意造型。<a href="/assets/robot-data-spatial/miniature/g1/LICENSE.txt">G1 许可</a> · <a href="/assets/robot-data-spatial/miniature/h2/LICENSE.txt">H2 许可</a>。</dd>
+          <dt>星尘 S1</dt><dd>基于 Astribot 的 <a href="https://github.com/Astribot-Dev/astribot_descriptions" target="_blank" rel="noreferrer">astribot_descriptions</a> 模型，按 Apache-2.0 许可使用。展示版本转换了格式、材质与静态姿态。Copyright 2025 Astribot。<a href="/assets/robot-data-spatial/miniature/s1/LICENSE.txt">许可全文</a>。</dd>
+          <dt>舞肌灵巧手</dt><dd>基于 Wuji Technology 的 <a href="https://github.com/wuji-technology/wuji-hand-description" target="_blank" rel="noreferrer">wuji-hand-description</a> 模型，按 MIT 许可使用。腕部适配及手指姿态为展示级配置，不指定未经核实的商业型号。<a href="/assets/robot-data-spatial/miniature/wuji-left/LICENSE.txt">左手许可</a> · <a href="/assets/robot-data-spatial/miniature/wuji-right/LICENSE.txt">右手许可</a>。</dd>
+          <dt>天机 Gento Luna</dt><dd>根据 <a href="https://cn.gentorobotics.ai/products/gento-luna/" target="_blank" rel="noreferrer">厂商公开外观资料</a> 本地制作的近似模型，并非厂商原始 CAD。未将厂商图片或视频作为刻行采集数据发布。</dd>
+        </dl>
+      </section>
+      <section><h2>空间、材质与字体</h2><p>空间与任务物件为本地构建的示意几何，不是实测场地的完整复原。木材贴图衍生自 Poly Haven 的 <a href="https://polyhaven.com/a/wood_table_001" target="_blank" rel="noreferrer">wood_table_001</a>（CC0）；其余空间造型与纹理按页面需要本地制作。</p><p>英文字体采用 Archivo Black 与 Bricolage Grotesque（SIL Open Font License 1.1），中文字形使用设备系统字体。<a href="/assets/fonts/miniature-graphic/archivo-black-LICENSE.txt">Archivo Black 许可</a> · <a href="/assets/fonts/miniature-graphic/bricolage-grotesque-LICENSE.txt">Bricolage Grotesque 许可</a>。</p></section>
+      <p class="source-record">机器人来源记录保留于 2026 年 9 月 7 日版本；网格压缩、静态几何合并及页面编排由刻行页面实现完成。<a href="/third-party-licenses.md">页面软件的开源许可</a>。</p>
+    </main>
+    <footer><a href="/training/robot-data/">真机数据</a><a href="mailto:hello@kexing.space">hello@kexing.space</a></footer>
+  </body>
+</html>
