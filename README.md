@@ -1,6 +1,6 @@
 # 刻行时空官网升级计划
 
-刻行时空官网已接入成果的独立代码仓：[`coscene-io/website-upgrade`](https://github.com/coscene-io/website-upgrade)。首次归档日期为 2026-10-06。
+刻行时空官网已接入成果的独立代码仓：[`qikenegg/website-upgrade`](https://github.com/qikenegg/website-upgrade)。首次归档日期为 2026-10-06。
 
 本仓保留当前官网首页、加速训练与交付保障页面的代码及运行素材。正在开发的「关于刻行」独立页面、历史研究入口和未接入方案不在本次归档范围。建立代码仓和提交归档不等同于部署官网。
 
