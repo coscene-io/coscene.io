@@ -44,6 +44,56 @@ body.has-separated-navigation {
   touch-action: pan-y;
 }
 
+.intelligence-home-section--narrative {
+  --particle-curtain-radius: 28px;
+  z-index: 3;
+  height: calc(var(--particle-story-track-units, 15.95) * var(--particle-story-viewport, 100svh));
+  min-height: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.intelligence-home-section--narrative #intelligence-study {
+  opacity: 1;
+  border-radius: 0 0 var(--particle-curtain-radius) var(--particle-curtain-radius);
+  box-shadow: 0 28px 68px rgba(0, 0, 0, 0.38);
+  pointer-events: auto;
+}
+
+.intelligence-home-section--narrative #intelligence-canvas {
+  filter: none;
+  transform: none;
+}
+
+.particle-narrative-anchor {
+  position: absolute;
+  top: 65svh;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.particle-narrative-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+#intelligence-study[data-narrative-active='true'] .intelligence-hero-copy,
+#intelligence-study[data-narrative-active='true'] .orbit-labels,
+#intelligence-study[data-narrative-active='true'] .intelligence-label {
+  pointer-events: none;
+}
+
+#intelligence-study[data-narrative-copy-retired='true'] .intelligence-hero-copy,
+#intelligence-study[data-narrative-copy-retired='true'] .orbit-labels,
+#intelligence-study[data-narrative-copy-retired='true'] .intelligence-label {
+  visibility: hidden;
+}
+
 #intelligence-study {
   --intelligence-exit-brightness: 1;
   --intelligence-exit-content-opacity: 1;
@@ -173,12 +223,12 @@ body.has-separated-navigation {
   transform: translateY(18px);
 }
 
-#intelligence-study[data-intro-started='true'] .intelligence-hero-copy h1 span:first-child {
-  animation: wow-copy-in 880ms 3500ms cubic-bezier(0.18, 0.72, 0.22, 1) forwards;
+#intelligence-study[data-copy-ready='true'] .intelligence-hero-copy h1 span:first-child {
+  animation: wow-copy-in 880ms cubic-bezier(0.18, 0.72, 0.22, 1) forwards;
 }
 
-#intelligence-study[data-intro-started='true'] .intelligence-hero-copy h1 span:last-child {
-  animation: wow-copy-in 880ms 3620ms cubic-bezier(0.18, 0.72, 0.22, 1) forwards;
+#intelligence-study[data-copy-ready='true'] .intelligence-hero-copy h1 span:last-child {
+  animation: wow-copy-in 880ms 120ms cubic-bezier(0.18, 0.72, 0.22, 1) forwards;
 }
 
 .intelligence-hero-copy h1 {
@@ -942,6 +992,11 @@ body.has-separated-navigation {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #intelligence-study[data-copy-ready='true'] .intelligence-hero-copy h1 span:first-child,
+  #intelligence-study[data-copy-ready='true'] .intelligence-hero-copy h1 span:last-child {
+    animation: none;
+  }
+
   #intelligence-canvas,
   .orbit-label {
     transition-duration: 0ms;
@@ -961,5 +1016,35 @@ body.has-separated-navigation {
 
   .intelligence-label {
     transform: translate3d(-50%, -50%, 0);
+  }
+}
+
+/* Keep the narrative timeline at every viewport; the standalone hero uses its own height. */
+.intelligence-home-section.intelligence-home-section--narrative {
+  height: calc(var(--particle-story-track-units, 15.95) * var(--particle-story-viewport, 100svh));
+  min-height: 0;
+}
+
+.intelligence-home-section.intelligence-home-section--narrative #intelligence-study {
+  height: calc(var(--particle-story-viewport, 100svh) - var(--site-navigation-height, 72px));
+  min-height: 0;
+}
+
+@media (max-width: 1180px) {
+  .intelligence-home-section--narrative {
+    --particle-curtain-radius: 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  .intelligence-home-section--narrative {
+    --particle-curtain-radius: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intelligence-home-section--narrative #intelligence-study {
+    border-radius: 0;
+    box-shadow: none;
   }
 }

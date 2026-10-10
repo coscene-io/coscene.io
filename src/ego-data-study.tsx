@@ -4,6 +4,7 @@ import { EgoGallery } from './ego-data-gallery'
 import type { GalleryClip } from './ego-data-gallery'
 import { ProcessingSection } from './ego-data-processing'
 import type { ProcessingData } from './ego-data-processing'
+import { SITE_ROUTES } from './site-routes'
 import { DataInfrastructureSection } from './ego-data-infrastructure'
 import './index.css'
 import './ego-data-study.css'
@@ -49,7 +50,7 @@ export default function EgoDataStudy() {
       {catalog ? <EgoGallery clips={galleryClips} onProcess={process} /> : <div className="eg-data-loading" role="status">{failed ? <>公开样例暂不可用<button type="button" onClick={() => setRevision(value => value + 1)}><RotateCcw size={16} />重新加载</button></> : '公开样例加载中'}</div>}
       {processing ? <ProcessingSection data={processing} selected={selected} frameIndex={frameIndex} onSelect={choose} onFrame={setFrameIndex} /> : failed && <section id="layers" className="eg-data-loading" role="status">加工样例暂不可用<button type="button" onClick={() => setRevision(value => value + 1)}><RotateCcw size={16} />重新加载加工样例</button></section>}
       <DataInfrastructureSection />
-      <section className="eg-closing"><div><h2>从具体的训练目标，<br />组织下一组数据。</h2><p>真机经验与人类经验，在同一条数据生产链中形成互补。</p></div><div className="eg-closing-actions"><a href="https://data-catalog.coscene.io/en/" target="_blank" rel="noreferrer">查看数据样例 <ArrowUpRight size={18} /></a><a href="mailto:hello@kexing.space?subject=真机与第一人称视频数据咨询">沟通采集方案 <ArrowUpRight size={18} /></a></div></section>
+      <section className="eg-closing"><div><h2>从具体的训练目标，<br />组织下一组数据。</h2><p>真机经验与人类经验，在同一条数据生产链中形成互补。</p></div><div className="eg-closing-actions"><a href="https://data-catalog.coscene.io/en/" target="_blank" rel="noreferrer">查看数据样例 <ArrowUpRight size={18} /></a><a href={SITE_ROUTES.contact}>沟通采集方案 <ArrowUpRight size={18} /></a></div></section>
       <footer className="eg-footer"><a href="/">KEXING SPACE / 刻行时空</a><span>物理世界数据基础设施</span><a href="#robot">返回真机数据 <ArrowUp size={14} /></a></footer>
     </div>
   </div>

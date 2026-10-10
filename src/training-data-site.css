@@ -1,0 +1,9 @@
+.training-data-site { padding-top: var(--site-navigation-height); background: #fff; }
+.training-data-site .site-navigation { --navigation-surface: #fff; }
+.training-data-site .site-navigation :is(h2, p, figure) { margin: 0; }
+.training-data-site .site-navigation button { font: inherit; cursor: pointer; }
+.training-data-site .site-navigation__toggle { min-width: 44px; min-height: 44px; }
+.training-data-site .eg-robot-section { scroll-margin-top: var(--site-navigation-height); }
+.training-data-site .eg-robot-section .mo-page { height: calc(100svh - var(--site-navigation-height) - 54px); }
+.training-data-site .eg-chapter-nav { top: var(--site-navigation-height); }
+.training-data-site .eg-page section { scroll-margin-top: calc(var(--site-navigation-height) + 70px); }

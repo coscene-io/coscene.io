@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { ArrowUpRight } from 'lucide-react'
+import { SITE_ROUTES } from './site-routes'
 
 const OVERLAY_ANCHORS: Record<string, { x: string; y: string }> = {
   'overlay-a': { x: '76%', y: '26%' },
@@ -60,7 +61,7 @@ export function DataInfrastructureSection() {
     </div>
     <div className="eg-infra-purchase">
       <p>同一套数据基础设施，也可供您的团队使用。</p>
-      <a href="mailto:hello@kexing.space?subject=%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD%E4%BA%A7%E5%93%81%E4%B8%8E%E9%87%87%E8%B4%AD%E5%92%A8%E8%AF%A2">咨询产品与采购 <ArrowUpRight size={17} aria-hidden="true" /></a>
+      <a href={SITE_ROUTES.contact}>咨询产品与采购 <ArrowUpRight size={17} aria-hidden="true" /></a>
     </div>
   </section>
 }

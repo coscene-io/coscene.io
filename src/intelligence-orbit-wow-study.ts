@@ -2,6 +2,10 @@ import * as THREE from 'three'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+import { createIntelligenceTunnel, PASSAGE_LANE_COUNT, passageShader, passageProjectionShader, passageParticleVertexShader } from './intelligence-tunnel-intro'
+import { createParticleNarrative } from './particle-narrative'
+import { NARRATIVE_DURATION, STORY_PHASES as S, STORY_GLSL as G } from './particle-story-clock'
 
 type PresentationTier = 'standard' | 'large' | 'ultra'
 
@@ -131,26 +135,6 @@ type ArrivalMaterial = THREE.ShaderMaterial & {
   }
 }
 
-type ReplayMaterial = THREE.ShaderMaterial & {
-  uniforms: {
-    uBackPoint: { value: THREE.Vector3 }
-    uCharacter: { value: number }
-    uContactPoint: { value: THREE.Vector3 }
-    uContactTangent: { value: THREE.Vector3 }
-    uGlobeRadius: { value: number }
-    uPixelRatio: { value: number }
-    uPointScale: { value: number }
-    uProgress: { value: number }
-    uSourceDepth: { value: THREE.Vector3 }
-    uSourcePosition: { value: THREE.Vector3 }
-    uSourceTangent: { value: THREE.Vector3 }
-    uSpread: { value: number }
-    uStrength: { value: number }
-    uTime: { value: number }
-    uTint: { value: THREE.Color }
-  }
-}
-
 type PulseTrail = {
   geometry: THREE.BufferGeometry
   material: PulseTrailMaterial
@@ -181,7 +165,6 @@ type OrbitState = {
   precessionPhase: number
   precessionSpeed: number
   pulseTrail: PulseTrail
-  replayMaterial: ReplayMaterial
   streamMaterial: StreamMaterial
   targetEnergy: number
   targetLift: number
@@ -227,6 +210,7 @@ function createSymmetricQuaternion(azimuth: number, polarAngle: number) {
 }
 
 export function mountIntelligenceOrbit(root: HTMLElement) {
+const narrativeEnabled = root.dataset.particleNarrative === 'true'
 const eventController = new AbortController()
 const eventOptions = { signal: eventController.signal }
 const canvas = requireElement<HTMLCanvasElement>(root, '#intelligence-canvas')
@@ -258,13 +242,19 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.08
+renderer.toneMappingExposure = 0.94
 renderer.setClearColor(0x020305, 1)
 
 const composer = new EffectComposer(renderer)
 composer.addPass(new RenderPass(scene, camera))
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), compact ? 0.31 : 0.4, 0.66, 0.76)
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), compact ? 0.48 : 0.64, 0.62, 0.92)
 composer.addPass(bloomPass)
+// Resolve the particles and their bloom together from linear HDR into the display.
+const outputPass = new OutputPass()
+composer.addPass(outputPass)
+// Shared linear-light palette for the passage, its particles and the orbits.
+const orbitTints = [new THREE.Color(0xff8c42), new THREE.Color(0xe1e4e8), new THREE.Color(0x3274ff)]
+const tunnel = createIntelligenceTunnel(scene, compact, orbitTints)
 
 const random = mulberry32(260816)
 const rig = new THREE.Group()
@@ -388,7 +378,7 @@ const wireMaterial = new THREE.MeshBasicMaterial({
   blending: THREE.AdditiveBlending,
   color: 0x5d9298,
   depthWrite: false,
-  opacity: 0.012,
+  opacity: 0.004,
   transparent: true,
   wireframe: true,
 })
@@ -398,6 +388,7 @@ globeGroup.add(wire)
 
 const globeVertexShader = `
   attribute float aPhase;
+  attribute float aPassageLane;
   attribute float aScale;
   uniform float uAttachmentProgress;
   uniform float uAttachmentStrength;
@@ -419,6 +410,9 @@ const globeVertexShader = `
   uniform float uTime;
   varying float vAlpha;
   varying vec3 vColor;
+  varying float vDefocus;
+  ${passageShader}
+  ${passageProjectionShader}
 
   void main() {
     float wave = sin(aPhase + uTime * 0.52) * 0.012;
@@ -469,9 +463,18 @@ const globeVertexShader = `
     vColor = mix(vColor, vec3(1.0, 0.7, 0.38), pulseBand * 0.72);
     vColor = mix(vColor, introWaveColor, min(0.76, introWave * 0.58));
     vColor = mix(vColor, vec3(0.9, 0.96, 1.0), uConvergence * 0.24);
-    float viewFacing = max(0.0, normalize(normalMatrix * normalize(displaced)).z);
+    vec3 opticalNormal = normalize(normalMatrix * normalize(displaced));
+    float viewFacing = max(0.0, opticalNormal.z);
+    float keyLight = pow(max(0.0, dot(opticalNormal, normalize(vec3(-0.55, 0.32, 0.78)))), 2.6);
+    float silk = pow(0.5 + 0.5 * sin(localDirection.y * 38.0 + sin(localDirection.x * 16.0) * 1.7 + localDirection.z * 22.0), 8.0);
+    float glint = pow(fract(sin(aPhase * 127.1) * 43758.5453), 9.0);
+    vDefocus = smoothstep(0.64, 1.0, abs(opticalNormal.z)) * 0.34;
+    gl_PointSize *= 1.24 + vDefocus * 1.6;
+    vColor = mix(vColor, vec3(0.075, 0.24, 0.92), 0.38 * (1.0 - keyLight));
+    vColor *= 0.7 + keyLight * 1.2 + glint * 2.6;
     float directionalReveal = smoothstep(-1.45, 1.05, position.x + position.y * 0.16);
-    vAlpha = (0.4 + 0.56 * pow(viewFacing, 0.4));
+    vAlpha = (0.12 + 0.83 * pow(viewFacing, 0.45));
+    vAlpha *= (0.68 + silk * 1.12 + glint * 0.7) / (1.0 + vDefocus * 0.8);
     vAlpha *= (0.62 + 0.26 * sin(aPhase * 0.7 + uTime * 0.4));
     vAlpha *= mix(0.42, 1.0, directionalReveal);
     float introVisibility = smoothstep(0.08, 0.34, uReveal);
@@ -479,28 +482,34 @@ const globeVertexShader = `
     float formed = max(reveal, attachmentReveal);
     float formedVisibility = max(introVisibility, attachmentReveal);
     vAlpha *= mix(0.04, 1.0, formed) * formedVisibility * (1.0 + pulseBand * 0.64 + focusGlow * 0.34 + introWave * 0.5 + uConvergence * 0.18);
+    ${passageParticleVertexShader}
   }
 `
 
 const globeFragmentShader = `
   varying float vAlpha;
   varying vec3 vColor;
+  varying float vDefocus;
 
   void main() {
     float distanceToCenter = length(gl_PointCoord - 0.5);
     if (distanceToCenter > 0.5) discard;
-    float edge = 1.0 - smoothstep(0.18, 0.5, distanceToCenter);
-    float coreLight = 1.0 - smoothstep(0.0, 0.24, distanceToCenter);
-    gl_FragColor = vec4(vColor * (0.76 + coreLight * 1.06), edge * vAlpha);
+    float radius = distanceToCenter * 2.0;
+    float edge = 1.0 - smoothstep(0.82, 1.0, radius);
+    float coreLight = exp(-radius * radius / mix(0.035, 0.16, vDefocus));
+    float scatter = exp(-radius * radius * 4.8) * 0.12;
+    float lens = mix(coreLight * 2.8 + scatter, exp(-radius * radius * 3.8) * 0.64, vDefocus);
+    gl_FragColor = vec4(vColor * lens, edge * vAlpha);
   }
 `
 
-function createGlobePoints(count: number, radius: number, halo = false) {
+function createGlobePoints(count: number, radius: number, halo = false, pointRandom = random) {
   const geometry = new THREE.BufferGeometry()
   const positions = new Float32Array(count * 3)
   const colors = new Float32Array(count * 3)
   const scales = new Float32Array(count)
   const phases = new Float32Array(count)
+  const passageLanes = new Float32Array(count)
   const cyan = new THREE.Color(0x58bfff)
   const silver = new THREE.Color(0xc6d4dc)
   const warm = new THREE.Color(0xff9852)
@@ -511,9 +520,9 @@ function createGlobePoints(count: number, radius: number, halo = false) {
     const radial = Math.sqrt(Math.max(0, 1 - y * y))
     const theta = goldenAngle * index
     const direction = new THREE.Vector3(Math.cos(theta) * radial, y, Math.sin(theta) * radial)
-      .add(new THREE.Vector3((random() - 0.5) * 0.018, (random() - 0.5) * 0.018, (random() - 0.5) * 0.018))
+      .add(new THREE.Vector3((pointRandom() - 0.5) * 0.018, (pointRandom() - 0.5) * 0.018, (pointRandom() - 0.5) * 0.018))
       .normalize()
-    const scatter = halo ? (random() - 0.5) * 0.26 : (random() - 0.5) * 0.055
+    const scatter = halo ? (pointRandom() - 0.5) * 0.26 : (pointRandom() - 0.5) * 0.055
     const pointRadius = radius + scatter
     const offset = index * 3
     positions[offset] = direction.x * pointRadius
@@ -521,21 +530,24 @@ function createGlobePoints(count: number, radius: number, halo = false) {
     positions[offset + 2] = direction.z * pointRadius
 
     const warmRegion = Math.max(0, direction.x * 0.75 - direction.y * 0.62)
-    let color = silver.clone().lerp(cyan, 0.42 + random() * 0.5)
-    if (!halo && warmRegion > 0.24 && random() < warmRegion * 0.46) {
-      color = color.lerp(warm, 0.82 + random() * 0.16)
+    let color = silver.clone().lerp(cyan, 0.42 + pointRandom() * 0.5)
+    if (!halo && warmRegion > 0.24 && pointRandom() < warmRegion * 0.46) {
+      color = color.lerp(warm, 0.82 + pointRandom() * 0.16)
     }
     colors[offset] = color.r
     colors[offset + 1] = color.g
     colors[offset + 2] = color.b
-    scales[index] = halo ? 0.34 + random() * 0.5 : 0.48 + random() * 0.78
-    phases[index] = random() * Math.PI * 2
+    scales[index] = halo ? 0.34 + pointRandom() * 0.5 : 0.48 + pointRandom() * 0.78
+    phases[index] = pointRandom() * Math.PI * 2
+    // Round-robin allocation keeps both globe layers equal across all colors.
+    passageLanes[index] = index % PASSAGE_LANE_COUNT
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1))
   geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1))
+  geometry.setAttribute('aPassageLane', new THREE.BufferAttribute(passageLanes, 1))
 
   const material = new THREE.ShaderMaterial({
     blending: THREE.AdditiveBlending,
@@ -544,6 +556,7 @@ function createGlobePoints(count: number, radius: number, halo = false) {
     fragmentShader: globeFragmentShader,
     transparent: true,
     uniforms: {
+      ...tunnel.uniforms,
       uAttachmentProgress: { value: 0 },
       uAttachmentStrength: { value: 0 },
       uConvergence: { value: 0 },
@@ -551,7 +564,7 @@ function createGlobePoints(count: number, radius: number, halo = false) {
       uFocusDirection: { value: new THREE.Vector3(0, 0, 1) },
       uFocusStrength: { value: 0 },
       uIntroWaveColors: {
-        value: [new THREE.Color(0xff9852), new THREE.Color(0xc6d4dc), new THREE.Color(0x58bfff)],
+        value: orbitTints.map((tint) => tint.clone()),
       },
       uIntroWaveDirections: {
         value: [
@@ -582,6 +595,7 @@ function createGlobePoints(count: number, radius: number, halo = false) {
   }) as GlobeMaterial
   material.toneMapped = false
   const points = new THREE.Points(geometry, material)
+  points.frustumCulled = false
   points.renderOrder = halo ? 4 : 3
   return { geometry, material, points }
 }
@@ -589,6 +603,17 @@ function createGlobePoints(count: number, radius: number, halo = false) {
 const globePointCount = compact ? 6200 : presentationProfile.globeCount
 const globeSurface = createGlobePoints(globePointCount, globeRadius * 1.025)
 globeGroup.add(globeSurface.points)
+
+// A finer grain fills the light field without moving existing particles or
+// advancing their seeded random sequence. Both scales share one animation clock.
+const globeDust = createGlobePoints(compact ? 4800 : globePointCount, globeRadius * 1.023, false, mulberry32(260817))
+globeDust.material.dispose()
+globeDust.points.material = globeSurface.material
+const dustScales = globeDust.geometry.getAttribute('aScale') as THREE.BufferAttribute
+for (let index = 0; index < dustScales.count; index += 1) {
+  dustScales.setX(index, dustScales.getX(index) * 0.52)
+}
+globeGroup.add(globeDust.points)
 
 const arrivalVertexShader = `
   attribute float aDelay;
@@ -803,146 +828,12 @@ const arrivalFragmentShader = `
   void main() {
     float distanceToCenter = length(gl_PointCoord - 0.5);
     if (distanceToCenter > 0.5) discard;
-    float edge = 1.0 - smoothstep(0.1, 0.5, distanceToCenter);
-    float coreLight = 1.0 - smoothstep(0.0, 0.2, distanceToCenter);
-    gl_FragColor = vec4(vColor * (0.8 + coreLight * 1.45), edge * vAlpha);
-  }
-`
-
-const replayVertexShader = `
-  attribute float aDelay;
-  attribute float aPhase;
-  attribute float aScale;
-  attribute vec3 aSpread;
-  uniform vec3 uBackPoint;
-  uniform float uCharacter;
-  uniform vec3 uContactPoint;
-  uniform vec3 uContactTangent;
-  uniform float uGlobeRadius;
-  uniform float uPixelRatio;
-  uniform float uPointScale;
-  uniform float uProgress;
-  uniform vec3 uSourceDepth;
-  uniform vec3 uSourcePosition;
-  uniform vec3 uSourceTangent;
-  uniform float uSpread;
-  uniform float uStrength;
-  uniform float uTime;
-  uniform vec3 uTint;
-  varying float vAlpha;
-  varying vec3 vColor;
-
-  vec3 cubicBezier(vec3 a, vec3 b, vec3 c, vec3 d, float progress) {
-    float inverse = 1.0 - progress;
-    return inverse * inverse * inverse * a
-      + 3.0 * inverse * inverse * progress * b
-      + 3.0 * inverse * progress * progress * c
-      + progress * progress * progress * d;
-  }
-
-  vec3 slerpDirection(vec3 startDirection, vec3 endDirection, float progress) {
-    float cosine = clamp(dot(startDirection, endDirection), -0.9995, 0.9995);
-    float angle = acos(cosine);
-    float angleSine = max(0.001, sin(angle));
-    return normalize(
-      startDirection * (sin((1.0 - progress) * angle) / angleSine)
-      + endDirection * (sin(progress * angle) / angleSine)
-    );
-  }
-
-  void main() {
-    float particleClock = uProgress - 0.025 - aDelay * 0.17;
-    float routeProgress = clamp(particleClock / 0.82, 0.0, 1.0);
-    float approachRaw = clamp(routeProgress / 0.72, 0.0, 1.0);
-    float approachProgress = approachRaw * approachRaw * (3.0 - 2.0 * approachRaw);
-    vec3 contactDirection = normalize(uContactPoint);
-    vec3 contactTangent = normalize(uContactTangent);
-    vec3 towardCamera = normalize(-uSourceDepth);
-    vec3 sourceToContact = normalize(uContactPoint - uSourcePosition);
-    vec3 outerPoint = uSourcePosition;
-    outerPoint += uSourceTangent * aSpread.x * uSpread * 1.34;
-    outerPoint += uSourceDepth * aSpread.z * uSpread * 0.68;
-    vec3 approachControlA = outerPoint + sourceToContact * (0.82 + uCharacter * 0.22);
-    approachControlA += uSourceTangent * aSpread.y * uSpread * 0.18;
-    vec3 approachControlB = uContactPoint - contactTangent * (0.7 + uCharacter * 0.16);
-    approachControlB += towardCamera * 0.12;
-    vec3 approachPoint = cubicBezier(
-      outerPoint,
-      approachControlA,
-      approachControlB,
-      uContactPoint,
-      approachProgress
-    );
-
-    float wrapRaw = clamp((routeProgress - 0.72) / 0.28, 0.0, 1.0);
-    float wrapEntrySpeed = 0.55;
-    float wrapProgress = wrapRaw * (wrapEntrySpeed
-      + wrapRaw * ((3.0 - 2.0 * wrapEntrySpeed) + wrapRaw * (wrapEntrySpeed - 2.0)));
-    vec3 backDirection = normalize(uBackPoint);
-    vec3 sphereDirection = slerpDirection(contactDirection, backDirection, wrapProgress);
-    vec3 surfaceForwardRaw = backDirection - sphereDirection * dot(backDirection, sphereDirection);
-    vec3 surfaceForward = surfaceForwardRaw / max(0.001, length(surfaceForwardRaw));
-    vec3 entryForward = normalize(backDirection - contactDirection * dot(backDirection, contactDirection));
-    vec3 surfaceSide = normalize(cross(contactDirection, entryForward));
-    float settling = smoothstep(0.0, 1.0, wrapProgress);
-    float surfaceScatter = mix(0.028, 0.012, settling);
-    float surfaceLift = mix(0.006, 0.004, settling);
-    vec3 wrapPoint = sphereDirection * (uGlobeRadius + surfaceLift);
-    wrapPoint += surfaceSide * aSpread.y * surfaceScatter;
-    wrapPoint += surfaceForward * aSpread.x * surfaceScatter * 0.42;
-
-    // Preserve the outer route; join its final quarter to the surface with matching position and velocity.
-    if (approachRaw > 0.75) {
-      float joinPhase = 0.84375;
-      float joinInverse = 1.0 - joinPhase;
-      vec3 joinPoint = cubicBezier(outerPoint, approachControlA, approachControlB, uContactPoint, joinPhase);
-      vec3 joinVelocity = 3.0 * (
-        joinInverse * joinInverse * (approachControlA - outerPoint)
-        + 2.0 * joinInverse * joinPhase * (approachControlB - approachControlA)
-        + joinPhase * joinPhase * (uContactPoint - approachControlB)
-      ) * 1.125 * 0.25;
-      float arcAngle = acos(clamp(dot(contactDirection, backDirection), -0.9995, 0.9995));
-      float entryScatter = aSpread.x * 0.028 * 0.42;
-      vec3 entryPoint = contactDirection * (uGlobeRadius + 0.006)
-        + surfaceSide * aSpread.y * 0.028 + entryForward * entryScatter;
-      vec3 entryVelocity = (entryForward * (uGlobeRadius + 0.006) - contactDirection * entryScatter)
-        * arcAngle * wrapEntrySpeed * (0.72 * 0.25 / 0.28);
-      float t = (approachRaw - 0.75) / 0.25;
-      float t2 = t * t;
-      float t3 = t2 * t;
-      approachPoint = (2.0 * t3 - 3.0 * t2 + 1.0) * joinPoint
-        + (t3 - 2.0 * t2 + t) * joinVelocity
-        + (-2.0 * t3 + 3.0 * t2) * entryPoint
-        + (t3 - t2) * entryVelocity;
-    }
-    vec3 positionOnPath = routeProgress < 0.72 ? approachPoint : wrapPoint;
-    positionOnPath += contactTangent
-      * sin(aPhase * 1.8 + uTime * 0.18)
-      * 0.012
-      * (1.0 - smoothstep(0.5, 0.72, routeProgress));
-
-    vec4 viewPosition = modelViewMatrix * vec4(positionOnPath, 1.0);
-    float fieldReveal = smoothstep(0.012, 0.09, uProgress);
-    float launchReveal = 0.2 + smoothstep(-0.02, 0.05, particleClock) * 0.8;
-    float contactLight = exp(-pow((routeProgress - 0.72) * 5.2, 2.0));
-    float wrapLight = smoothstep(0.02, 0.4, wrapRaw)
-      * (1.0 - smoothstep(0.72, 1.0, wrapRaw));
-    float surfaceAbsorption = 1.0 - smoothstep(0.56, 0.8, routeProgress) * 0.68;
-    float endFade = 1.0 - smoothstep(0.9, 1.0, routeProgress);
-    gl_PointSize = aScale
-      * (0.96 + contactLight * 0.2 + wrapLight * 0.18)
-      * uPixelRatio
-      * uPointScale
-      * (28.0 / max(1.0, -viewPosition.z));
-    gl_Position = projectionMatrix * viewPosition;
-    vAlpha = fieldReveal
-      * launchReveal
-      * endFade
-      * surfaceAbsorption
-      * (0.22 + contactLight * 0.48 + wrapLight * 0.42)
-      * uStrength;
-    vColor = mix(uTint, vec3(0.94, 0.98, 1.0), contactLight * 0.56);
-    vColor = mix(vColor, vec3(0.76, 0.9, 1.0), wrapLight * 0.24);
+    float radius = distanceToCenter * 2.0;
+    float edge = 1.0 - smoothstep(0.8, 1.0, radius);
+    float coreLight = exp(-radius * radius * 24.0);
+    float scatter = exp(-radius * radius * 5.2);
+    vec3 luminousColor = mix(vColor, vec3(1.0, 0.96, 0.86), coreLight * 0.24);
+    gl_FragColor = vec4(luminousColor * (coreLight * 3.2 + scatter * 0.32), edge * vAlpha);
   }
 `
 
@@ -965,6 +856,7 @@ const rimVertexShader = `
 `
 
 const rimFragmentShader = `
+  uniform vec3 uLightTints[3];
   uniform float uEnergy;
   uniform float uReveal;
   uniform float uTime;
@@ -979,9 +871,9 @@ const rimFragmentShader = `
     float silverWeight = exp(cos(angle - 1.314) * 2.35);
     float blueWeight = exp(cos(angle - 3.408) * 2.35);
     float weightSum = warmWeight + silverWeight + blueWeight;
-    vec3 warm = vec3(1.0, 0.43, 0.16);
-    vec3 silver = vec3(0.78, 0.86, 0.9);
-    vec3 blue = vec3(0.18, 0.62, 1.0);
+    vec3 warm = uLightTints[0];
+    vec3 silver = uLightTints[1];
+    vec3 blue = uLightTints[2];
     return (warm * warmWeight + silver * silverWeight + blue * blueWeight) / weightSum;
   }
 
@@ -992,13 +884,13 @@ const rimFragmentShader = `
     float signedDistance = (distanceFromCenter - vCoreRadiusView) / vCoreRadiusView;
     float antialiasWidth = max(fwidth(signedDistance) * 1.2, 0.0008);
 
-    float coreWidth = 0.0038 + antialiasWidth;
+    float coreWidth = 0.0022 + antialiasWidth;
     float electricCore = exp(-pow(abs(signedDistance) / coreWidth, 1.72));
     float innerDistance = max(-signedDistance, 0.0);
     float outerDistance = max(signedDistance, 0.0);
     float outerMask = smoothstep(-antialiasWidth, antialiasWidth, signedDistance);
     float innerMask = 1.0 - outerMask;
-    float innerScatter = exp(-pow(innerDistance / 0.016, 1.45)) * innerMask;
+    float innerScatter = exp(-pow(innerDistance / 0.052, 1.45)) * innerMask;
     float outerMist = exp(-pow(outerDistance / 0.052, 1.3)) * outerMask;
 
     vec3 direction = normalize(vLocalDirection);
@@ -1013,17 +905,17 @@ const rimFragmentShader = `
     );
 
     vec3 tint = energyColor(direction);
-    vec3 iceWhite = vec3(0.82, 0.96, 1.0);
-    vec3 coreColor = mix(iceWhite, tint, 0.38 + gathering * 0.1);
-    vec3 innerColor = mix(iceWhite, tint, 0.58);
-    vec3 mistColor = mix(vec3(0.34, 0.72, 0.84), tint, 0.86);
+    vec3 iceWhite = vec3(0.92);
+    vec3 coreColor = mix(iceWhite, tint, 0.72);
+    vec3 innerColor = tint * 0.46;
+    vec3 mistColor = tint * 0.4;
 
     float energyLift = 1.0 + uEnergy * 0.22;
-    vec3 light = coreColor * electricCore * (2.6 + gathering * 0.54) * energyLift;
-    light += innerColor * innerScatter * 0.7 * fogDensity;
-    light += mistColor * outerMist * (0.54 + gathering * 0.36) * fogDensity;
-    float alpha = electricCore * 0.26 + innerScatter * 0.07 + outerMist * 0.058 * fogDensity;
-    gl_FragColor = vec4(light, alpha * uReveal);
+    float rimLighting = 0.1 + gathering * 0.8 + max(slowField, 0.0) * 0.16;
+    vec3 light = coreColor * electricCore * rimLighting * 0.9 * energyLift;
+    light += innerColor * innerScatter * (0.12 + gathering * 0.34) * fogDensity;
+    light += mistColor * outerMist * (0.065 + gathering * 0.2) * fogDensity;
+    gl_FragColor = vec4(light, uReveal);
   }
 `
 
@@ -1038,6 +930,7 @@ const rimMaterial = new THREE.ShaderMaterial({
   side: THREE.FrontSide,
   transparent: true,
   uniforms: {
+    uLightTints: { value: orbitTints },
     uCoreRadius: { value: globeRadius * rimCoreScale },
     uEnergy: { value: 0 },
     uReveal: { value: reducedMotion ? 1 : 0 },
@@ -1091,7 +984,6 @@ orbitLineGeometry.setAttribute(
   new THREE.BufferAttribute(Float32Array.from({ length: 1025 }, (_, index) => index / 1024), 1),
 )
 const orbitStates: OrbitState[] = []
-const orbitTints = [new THREE.Color(0xff9852), new THREE.Color(0xc6d4dc), new THREE.Color(0x58bfff)]
 const orbitPolarAngles = [68, 55, 55].map(THREE.MathUtils.degToRad)
 const arrivalContactAngles = [154, 64, 226].map(THREE.MathUtils.degToRad)
 const arrivalDirections = [1, 1, -1]
@@ -1116,6 +1008,7 @@ const streamVertexShader = `
   varying float vAlpha;
   varying vec3 vColor;
   varying float vPrototype;
+  varying float vDefocus;
 
   void main() {
     float movingPhase = fract(aPhase + uTime * uSpeed);
@@ -1127,10 +1020,14 @@ const streamVertexShader = `
 
     float headPhase = fract(uTime * uSpeed + uPhaseOffset);
     float trailDistance = fract(headPhase - aPhase + 1.0);
-    float head = exp(-pow(trailDistance / 0.034, 1.55));
-    float activeTrail = 1.0 - smoothstep(0.045, 0.34, trailDistance);
-    float memoryTrail = (1.0 - smoothstep(0.68, 0.84, trailDistance)) * 0.048;
-    float spreadProgress = smoothstep(0.018, 0.56, trailDistance);
+    // Carry a small leading particle envelope across the phase seam.
+    float headDistance = trailDistance > 0.5 ? trailDistance - 1.0 : trailDistance;
+    float headWidth = headDistance < 0.0 ? 0.0045 : 0.034;
+    float head = exp(-pow(abs(headDistance) / headWidth, 1.55));
+    float activeTrail = trailDistance > 0.9 ? head : 1.0 - smoothstep(0.045, 0.34, trailDistance);
+    float memoryTrail = (trailDistance > 0.9 ? head : 1.0 - smoothstep(0.68, 0.84, trailDistance)) * 0.048;
+    float spreadDistance = mix(trailDistance, max(0.0, headDistance), smoothstep(0.9, 0.97, trailDistance));
+    float spreadProgress = smoothstep(0.018, 0.56, spreadDistance);
     float spread = mix(0.0035, 0.058, spreadProgress);
     float radialScatter = aSpread.x * spread;
     float depthScatter = aSpread.y * spread * 0.72;
@@ -1145,14 +1042,20 @@ const streamVertexShader = `
     float prototypeSize = aScale * (0.86 + head * 0.72 + activeTrail * 0.18) * energy * uPixelRatio * uPointScale
       * (30.0 / max(1.0, -viewPosition.z));
     gl_PointSize = mix(originalSize, prototypeSize, uPrototype);
+    float centerDepth = -(modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).z;
+    vDefocus = smoothstep(0.45, 3.4, abs(-viewPosition.z - centerDepth)) * 0.72;
+    gl_PointSize *= 1.3 + vDefocus * 2.6;
     gl_Position = projectionMatrix * viewPosition;
     float originalAlpha = 0.18 + cluster * 0.82;
     float traceGrain = 0.92 + sin(aPhase * 289.0 + aSpread.x * 7.0) * 0.06;
     float prototypeAlpha = (head * 0.76 + activeTrail * 0.3 + memoryTrail) * traceGrain;
     vAlpha = mix(originalAlpha, prototypeAlpha, uPrototype) * (1.0 + uEnergy * 0.16) * uReveal;
-    vec3 originalColor = mix(uTint, vec3(1.0), cluster * 0.62);
-    vec3 prototypeColor = mix(uTint, vec3(0.9, 0.97, 1.0), min(0.82, head * 0.72 + activeTrail * 0.18));
+    float glint = pow(fract(sin(aPhase * 367.7 + aSpread.x * 12.1) * 43758.5453), 7.0);
+    vAlpha *= (0.46 + glint * 1.25) / (1.0 + vDefocus * 1.1);
+    vec3 originalColor = mix(uTint, vec3(1.0), cluster * 0.22);
+    vec3 prototypeColor = mix(uTint, vec3(1.0), min(0.22, head * 0.18 + activeTrail * 0.04));
     vColor = mix(originalColor, prototypeColor, uPrototype);
+    vColor *= 0.75 + glint * 1.65;
     vPrototype = uPrototype;
   }
 `
@@ -1161,20 +1064,25 @@ const streamFragmentShader = `
   varying float vAlpha;
   varying vec3 vColor;
   varying float vPrototype;
+  varying float vDefocus;
 
   void main() {
     float distanceToCenter = length(gl_PointCoord - 0.5);
     if (distanceToCenter > 0.5) discard;
-    float edgeStart = mix(0.12, 0.035, vPrototype);
-    float edge = 1.0 - smoothstep(edgeStart, 0.5, distanceToCenter);
-    float coreLight = 1.0 - smoothstep(0.0, mix(0.2, 0.16, vPrototype), distanceToCenter);
-    float brightness = mix(0.72 + coreLight * 1.8, 0.94 + coreLight * 1.68, vPrototype);
+    float radius = distanceToCenter * 2.0;
+    float edge = 1.0 - smoothstep(0.78, 1.0, radius);
+    float sharpCore = exp(-radius * radius * 28.0);
+    float softLens = exp(-radius * radius * mix(8.0, 3.8, vDefocus));
+    float brightness = mix(sharpCore * 3.5 + softLens * 0.2, softLens * 0.9, vDefocus);
     gl_FragColor = vec4(vColor * brightness, edge * vAlpha);
   }
 `
 
 function createPulseTrail(tint: THREE.Color, phaseOffset: number) {
-  const sampleCount = presentationTier === 'ultra' ? 257 : presentationTier === 'large' ? 193 : 145
+  const bodySampleCount = presentationTier === 'ultra' ? 257 : presentationTier === 'large' ? 193 : 145
+  const headCapSamples = 24
+  const headCapLength = 0.012
+  const sampleCount = bodySampleCount + headCapSamples
   const geometry = new THREE.BufferGeometry()
   const positions = new Float32Array(sampleCount * 2 * 3)
   const previous = new Float32Array(sampleCount * 2 * 3)
@@ -1186,22 +1094,29 @@ function createPulseTrail(tint: THREE.Color, phaseOffset: number) {
   const widthProfiles = new Float32Array(sampleCount * 2)
   const indices = new Uint16Array((sampleCount - 1) * 6)
   const color = new THREE.Color()
-  const iceWhite = new THREE.Color(0xe8f8ff)
-  const angleStep = (presentationProfile.pulseTailLength / (sampleCount - 1)) * Math.PI * 2
+  const iceWhite = new THREE.Color(0xffffff)
+  const angleStep = (presentationProfile.pulseTailLength / (bodySampleCount - 1)) * Math.PI * 2
 
   for (let index = 0; index < sampleCount; index += 1) {
-    const progress = index / (sampleCount - 1)
-    const angle = (phaseOffset - presentationProfile.pulseTailLength * (1 - progress)) * Math.PI * 2
+    const bodyProgress = Math.min(1, index / (bodySampleCount - 1))
+    const capProgress = Math.max(0, (index - bodySampleCount + 1) / headCapSamples)
+    const progress = bodyProgress + capProgress * headCapLength / presentationProfile.pulseTailLength
+    const angle = (phaseOffset - presentationProfile.pulseTailLength * (1 - bodyProgress)
+      + capProgress * headCapLength) * Math.PI * 2
     const pointX = Math.cos(angle) * orbitRadius
     const pointY = Math.sin(angle) * orbitRadius
     const previousX = Math.cos(angle - angleStep) * orbitRadius
     const previousY = Math.sin(angle - angleStep) * orbitRadius
     const nextX = Math.cos(angle + angleStep) * orbitRadius
     const nextY = Math.sin(angle + angleStep) * orbitRadius
-    const visibility = smoothStep(0.08, 0.48, progress) * Math.pow(progress, 2.05)
-    const headLift = smoothStep(0.78, 1, progress)
-    const widthProfile = THREE.MathUtils.lerp(0.46, 1, smoothStep(0.08, 0.82, progress))
-    color.copy(tint).lerp(iceWhite, headLift * 0.74)
+    const capOpacity = Math.exp(-2.2 * capProgress * capProgress) * (1 - smoothStep(0.75, 1, capProgress))
+    const visibility = smoothStep(0.04, 0.3, bodyProgress) * Math.pow(bodyProgress, 0.72) * capOpacity
+    const headLift = smoothStep(0.78, 1, bodyProgress)
+    // A rounded cap continues beyond the luminous peak instead of cutting
+    // every filament off on the same full-width cross-section.
+    const capWidth = Math.sqrt(Math.max(0, 1 - capProgress * capProgress))
+    const widthProfile = THREE.MathUtils.lerp(0.46, 1, smoothStep(0.08, 0.82, bodyProgress)) * capWidth
+    color.copy(tint).lerp(iceWhite, headLift * 0.14)
 
     for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
       const vertexIndex = index * 2 + sideIndex
@@ -1337,16 +1252,25 @@ function createPulseTrail(tint: THREE.Color, phaseOffset: number) {
         float across = abs(vAcross);
         float edgeWidth = max(fwidth(across) * 1.35, 0.012);
         float stripEdge = 1.0 - smoothstep(1.0 - edgeWidth, 1.0, across);
-        float haze = pow(max(0.0, 1.0 - across), 2.2) * stripEdge;
-        float coreRatio = clamp(uCoreWidth / max(uHazeWidth, 0.001), 0.08, 0.72);
+        float haze = exp(-across * across * 5.8) * stripEdge;
+        float coreRatio = clamp(uCoreWidth / max(uHazeWidth, 0.001), 0.008, 0.72);
         float coreDistance = across / coreRatio;
         float coreEdgeWidth = max(fwidth(coreDistance) * 1.25, 0.018);
         float core = 1.0 - smoothstep(1.0 - coreEdgeWidth, 1.0, coreDistance);
         float coreCenter = 1.0 - smoothstep(0.0, 0.78, coreDistance);
-        float intensity = uHazeOpacity * haze + uCoreOpacity * core * (0.7 + coreCenter * 0.3);
+        float headGather = 1.0 - smoothstep(0.93, 1.015, vProgress);
+        float weave = sin(vProgress * 13.0) * 0.055;
+        float filamentWidth = max(fwidth(vAcross) * 0.9, 0.016);
+        float filamentA = exp(-pow(abs(vAcross - (0.19 + weave) * headGather) / filamentWidth, 2.0));
+        float filamentB = exp(-pow(abs(vAcross + (0.3 + weave * 0.7) * headGather) / (filamentWidth * 1.5), 2.0));
+        float filamentC = exp(-pow(abs(vAcross - (0.52 - weave) * headGather) / (filamentWidth * 2.0), 2.0));
+        float filaments = filamentA * 0.32 + filamentB * 0.16 + filamentC * 0.07;
         float headEnergy = smoothstep(0.74, 1.0, vProgress);
-        vec3 lightColor = mix(vColor, vec3(0.94, 0.99, 1.0), core * (0.18 + headEnergy * 0.18));
-        gl_FragColor = vec4(lightColor * (0.86 + core * 1.34), vTrailAlpha * intensity * uOpacity);
+        vec3 lightColor = mix(vColor, vec3(1.0), core * (0.08 + headEnergy * 0.12));
+        vec3 scatterColor = vColor * 0.78;
+        vec3 radiance = lightColor * core * uCoreOpacity * (2.2 + coreCenter * 1.2);
+        radiance += scatterColor * (haze * uHazeOpacity + filaments * (0.7 + headEnergy * 0.5));
+        gl_FragColor = vec4(radiance, vTrailAlpha * uOpacity * stripEdge);
 
         #include <fog_fragment>
       }
@@ -1369,8 +1293,8 @@ function createPulseTrail(tint: THREE.Color, phaseOffset: number) {
 function updatePulseTrail(trail: PulseTrail, time: number, energy: number, reveal: number) {
   const positiveEnergy = Math.max(0, energy)
   trail.mesh.rotation.z = time * trail.speed * Math.PI * 2
-  trail.material.uniforms.uCoreOpacity.value = 0.48 + positiveEnergy * 0.08
-  trail.material.uniforms.uHazeOpacity.value = 0.045 + positiveEnergy * 0.02
+  trail.material.uniforms.uCoreOpacity.value = 0.5 + positiveEnergy * 0.1
+  trail.material.uniforms.uHazeOpacity.value = 0.24 + positiveEnergy * 0.045
   trail.material.uniforms.uOpacity.value = reveal
   trail.mesh.visible = reveal > 0.001
 }
@@ -1468,48 +1392,6 @@ function createArrivalMaterial(index: number) {
   return material
 }
 
-function createReplayMaterial(index: number) {
-  const contactAngle = arrivalContactAngles[index]
-  const direction = arrivalDirections[index]
-  const replayTint = orbitTints[index].clone()
-  if (index === 2) replayTint.lerp(new THREE.Color(0xe8f8ff), 0.38)
-  const contactPoint = new THREE.Vector3(
-    Math.cos(contactAngle) * globeRadius * 1.035,
-    Math.sin(contactAngle) * globeRadius * 1.035,
-    0,
-  )
-  const contactTangent = new THREE.Vector3(-Math.sin(contactAngle), Math.cos(contactAngle), 0)
-    .multiplyScalar(direction)
-    .normalize()
-  const material = new THREE.ShaderMaterial({
-    blending: THREE.AdditiveBlending,
-    depthTest: true,
-    depthWrite: false,
-    fragmentShader: arrivalFragmentShader,
-    transparent: true,
-    uniforms: {
-      uBackPoint: { value: new THREE.Vector3(0, 0, -globeRadius * 1.035) },
-      uCharacter: { value: arrivalCharacters[index] },
-      uContactPoint: { value: contactPoint },
-      uContactTangent: { value: contactTangent },
-      uGlobeRadius: { value: globeRadius * 1.035 },
-      uPixelRatio: { value: 1 },
-      uPointScale: { value: presentationProfile.arrivalPointScale },
-      uProgress: { value: 2 },
-      uSourceDepth: { value: new THREE.Vector3(0, 0, 1) },
-      uSourcePosition: { value: new THREE.Vector3() },
-      uSourceTangent: { value: new THREE.Vector3(1, 0, 0) },
-      uSpread: { value: index === 2 ? arrivalSpreads[index] * 0.72 : arrivalSpreads[index] },
-      uStrength: { value: 0 },
-      uTime: { value: 0 },
-      uTint: { value: replayTint },
-    },
-    vertexShader: replayVertexShader,
-  }) as ReplayMaterial
-  material.toneMapped = false
-  return material
-}
-
 for (let index = 0; index < 3; index += 1) {
   const group = new THREE.Group()
   const baseQuaternion = createSymmetricQuaternion(
@@ -1599,14 +1481,10 @@ for (let index = 0; index < 3; index += 1) {
   )
   const arrivalMaterial = createArrivalMaterial(index)
   const arrival = new THREE.Points(arrivalGeometry, arrivalMaterial)
+  arrival.visible = false
   arrival.frustumCulled = false
   arrival.renderOrder = 8
   group.add(arrival)
-  const replayMaterial = createReplayMaterial(index)
-  const replay = new THREE.Points(arrivalGeometry, replayMaterial)
-  replay.frustumCulled = false
-  replay.renderOrder = 8
-  group.add(replay)
 
   orbitStates.push({
     arrivalMaterial,
@@ -1620,13 +1498,12 @@ for (let index = 0; index < 3; index += 1) {
     precessionPhase: index * (Math.PI * 2) / 3,
     precessionSpeed: 0.18 + index * 0.012,
     pulseTrail,
-    replayMaterial,
     streamMaterial,
     targetEnergy: 0,
     targetLift: 0,
   })
 }
-root.dataset.globePointCount = String(globePointCount)
+root.dataset.globePointCount = String(globePointCount + dustScales.count)
 root.dataset.streamPointCount = String(compact ? 1800 : presentationProfile.streamCount)
 root.dataset.arrivalPointScale = presentationProfile.arrivalCountScale.toFixed(2)
 
@@ -1727,6 +1604,7 @@ function hasOrbitIntent(index: number) {
 }
 
 function requestOrbitFocus(index: number) {
+  if (!orbitsReady) return
   cancelOrbitClear()
   if (lockedOrbit >= 0) return
   if (returningToOverview) {
@@ -1808,6 +1686,7 @@ orbitLabels.forEach((label) => {
     scheduleOrbitClear()
   }, eventOptions)
   trigger.addEventListener('click', () => {
+    if (!orbitsReady) return
     cancelOrbitClear()
     cancelOverviewReturn()
     lockedOrbit = lockedOrbit === index ? -1 : index
@@ -1829,6 +1708,7 @@ function setPointerCoordinates(clientX: number, clientY: number) {
 }
 
 function updatePointer(clientX: number, clientY: number, updateFocus = true) {
+  if (!orbitsReady) return false
   setPointerCoordinates(clientX, clientY)
   if (returningToOverview) {
     globeHovered = false
@@ -1973,8 +1853,8 @@ function resizePulseTrails(width: number, height: number, compactLayout: boolean
   const focalLength = height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)))
   const projectedDiameter =
     (2 * globeRadius * Math.abs(pulseSizingScale.x) * focalLength) / depth
-  const coreWidth = THREE.MathUtils.clamp(projectedDiameter * 0.00218, compactLayout ? 1 : 1.1, 2.85)
-  const hazeWidth = THREE.MathUtils.clamp(projectedDiameter * 0.00715, compactLayout ? 3.8 : 4, 9.4)
+  const coreWidth = THREE.MathUtils.clamp(projectedDiameter * 0.0018, compactLayout ? 0.85 : 1.1, 2.6)
+  const hazeWidth = THREE.MathUtils.clamp(projectedDiameter * 0.082, compactLayout ? 20 : 36, 100)
 
   orbitStates.forEach((orbit) => {
     orbit.pulseTrail.material.uniforms.uResolution.value.set(width, height)
@@ -1985,6 +1865,7 @@ function resizePulseTrails(width: number, height: number, compactLayout: boolean
 }
 
 function resize() {
+  if (narrativeEnabled) frozenStoryPose = null
   const width = root.clientWidth
   const height = root.clientHeight
   const portraitLayout = height > width
@@ -2031,27 +1912,99 @@ function resize() {
   renderer.setSize(width, height, false)
   composer.setPixelRatio(pixelRatio)
   composer.setSize(width, height)
+  tunnel.resize(width, height)
   backgroundMaterial.uniforms.uPixelRatio.value = pixelRatio
   globeSurface.material.uniforms.uPixelRatio.value = pixelRatio
   orbitStates.forEach((orbit) => {
     orbit.streamMaterial.uniforms.uPixelRatio.value = pixelRatio
     orbit.arrivalMaterial.uniforms.uPixelRatio.value = pixelRatio
-    orbit.replayMaterial.uniforms.uPixelRatio.value = pixelRatio
   })
   root.dataset.pixelRatio = pixelRatio.toFixed(2)
   positionHtmlLabels()
 }
 
+const narrativeAuxiliaryFade = { value: 1 }
+const storyUnits = { value: 0 }
+const storyDestinations = orbitStates.map(() => new THREE.Vector3())
+let frozenStoryPose: {
+  rigPosition: THREE.Vector3; rigQuaternion: THREE.Quaternion; rigScale: THREE.Vector3; globe: THREE.Quaternion;
+  groups: THREE.Quaternion[]; groupPositions: THREE.Vector3[]; groupScales: THREE.Vector3[];
+  pulses: THREE.Quaternion[]; orbitTime: number;
+} | null = null
+if (narrativeEnabled) {
+  const excluded = new Set<THREE.Material>([
+    globeSurface.material,
+    ...orbitStates.flatMap(orbit => [orbit.pulseTrail.material, orbit.streamMaterial]),
+  ])
+  const materials = new Set<THREE.Material>()
+  scene.traverse(object => {
+    if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Line) {
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+        if (!excluded.has(material)) materials.add(material)
+      }
+    }
+  })
+  const fadeFragment = (shader: string) => `uniform float uNarrativeFade;\n${shader.replace(/}\s*$/, 'gl_FragColor.rgb *= uNarrativeFade; gl_FragColor.a *= uNarrativeFade;\n}')}`
+  materials.forEach(material => {
+    if (material instanceof THREE.ShaderMaterial) {
+      material.uniforms.uNarrativeFade = narrativeAuxiliaryFade
+      material.fragmentShader = fadeFragment(material.fragmentShader)
+    } else {
+      material.onBeforeCompile = shader => {
+        shader.uniforms.uNarrativeFade = narrativeAuxiliaryFade
+        shader.fragmentShader = fadeFragment(shader.fragmentShader)
+      }
+      material.customProgramCacheKey = () => 'particle-story-auxiliary'
+    }
+    material.needsUpdate = true
+  })
+  globeSurface.material.uniforms.uStoryUnits = storyUnits
+  globeSurface.material.uniforms.uStoryColors = { value: orbitTints }
+  globeSurface.material.vertexShader = `uniform float uStoryUnits; uniform vec3 uStoryColors[3];\n${globeSurface.material.vertexShader.replace(/}\s*$/, `
+    float storyRelease = ${G.sphereReleaseStart} + fract(aPhase / 6.28318530718) * ${G.sphereReleaseSpread};
+    float storyLeave = smoothstep(storyRelease, storyRelease + ${G.sphereReleaseFade}, uStoryUnits);
+    vAlpha *= 1. - storyLeave;
+    vColor = mix(vColor, uStoryColors[int(mod(aPassageLane, 3.))], smoothstep(${G.copyExit}, ${G.sphereColorComplete}, uStoryUnits) * .8);
+  }`)}`
+  orbitStates.forEach((orbit) => {
+    const trailMaterial = orbit.pulseTrail.material
+    trailMaterial.uniforms.uStoryUnits = storyUnits
+    // Keep the same arc until the narrative pool occupies its actual centreline.
+    // Moving this entire ribbon to the text as well would create a second, parallel stream.
+    trailMaterial.vertexShader = `uniform float uStoryUnits;\n${trailMaterial.vertexShader
+      .replace('currentClip.xy += (offsetPixel * 2.0 / uResolution) * currentClip.w;', `
+        offsetPixel *= mix(1., 1.35, smoothstep(${G.copyExit}, ${G.orbitDetailsEnd}, uStoryUnits));
+        currentClip.xy += (offsetPixel * 2.0 / uResolution) * currentClip.w;
+      `)
+      .replace(/}\s*$/, `
+        vTrailAlpha *= 1. - smoothstep(${G.trailTakeoverStart}, ${G.trailTakeoverEnd}, uStoryUnits);
+      }`)}`
+    trailMaterial.fragmentShader = `uniform float uStoryUnits;\n${trailMaterial.fragmentShader
+      .replace('float filaments = filamentA * 0.32 + filamentB * 0.16 + filamentC * 0.07;', `
+        float filaments = (filamentA * 0.32 + filamentB * 0.16 + filamentC * 0.07)
+          * (1. - smoothstep(${G.copyExit}, ${G.orbitDetailsEnd}, uStoryUnits));
+      `)}`
+    orbit.streamMaterial.uniforms.uStoryUnits = storyUnits
+    // The stable hero's long particle memory is a separate layer, not a transfer donor.
+    orbit.streamMaterial.vertexShader = `uniform float uStoryUnits;\n${orbit.streamMaterial.vertexShader.replace(/}\s*$/, `
+      vAlpha *= 1. - smoothstep(${G.copyExit}, ${G.orbitDetailsEnd}, uStoryUnits);
+    }`)}`
+  })
+}
+const narrative = narrativeEnabled ? createParticleNarrative(scene, camera, root, {
+  spheres: [globeSurface.points, globeDust.points],
+  trails: orbitStates.map(orbit => orbit.pulseTrail.mesh),
+  destinations: storyDestinations,
+}) : null
+
 const resizeObserver = new ResizeObserver(resize)
 resizeObserver.observe(root)
 resize()
 
-const introDuration = 4.2
+const introDuration = 5
 const orbitCopyRevealDelay = 0.26
 const orbitRevealDelay = 0.48
 const orbitRevealDuration = 1.5
-const replayDelay = 8.5
-const replayDuration = 3.4
 let elapsed = 0
 let introElapsed = reducedMotion ? introDuration : 0
 let orbitRevealElapsed = reducedMotion ? orbitRevealDuration : 0
@@ -2065,8 +2018,6 @@ const initialVisibleHeight = Math.max(
 )
 let heroVisible = initialVisibleHeight / Math.max(1, initialHeroRect.height) >= 0.3
 let heroHasLeft = !heroVisible
-let replayClock = 0
-let replayElapsed = replayDuration + 1
 let frame = 0
 let lastFrameTime = performance.now()
 let frameWindowStart = lastFrameTime
@@ -2076,6 +2027,7 @@ let previousSample: Uint8Array | null = null
 let diagnosticsSamples = 0
 let animationLoopRunning = false
 let disposed = false
+orbitLabels.forEach((label) => { label.inert = !reducedMotion })
 
 function updateSceneVisibility() {
   root.dataset.sceneVisible = String(sceneVisible && heroVisible)
@@ -2099,22 +2051,39 @@ function syncAnimationLoop() {
 }
 
 function restartIntro() {
+  if (narrativeEnabled && Number(root.dataset.narrativeProgress ?? 0) > 0) return
   if (reducedMotion) return
+  clearOrbitFocus()
+  if (activePointerId >= 0 && root.hasPointerCapture(activePointerId)) {
+    root.releasePointerCapture(activePointerId)
+  }
+  activePointerId = -1
+  draggingGlobe = false
+  globeHovered = false
+  dragVelocityX = 0
+  dragVelocityY = 0
+  pointerTarget.set(0, 0)
+  pointerMotion.set(0, 0)
+  focusStrength = 0
+  focusStrengthTarget = 0
+  root.dataset.globeHover = 'false'
+  root.dataset.interaction = 'idle'
+  orbitLabels.forEach((label) => { label.inert = true })
   introElapsed = 0
   orbitRevealElapsed = 0
-  replayClock = 0
-  replayElapsed = replayDuration + 1
   pulseProgress = 2
   introStarted = false
   orbitsReady = false
   delete root.dataset.introStarted
   delete root.dataset.orbitsReady
+  delete root.dataset.copyReady
   void root.offsetWidth
 }
 
 updateSceneVisibility()
 if (introStarted) root.dataset.introStarted = 'true'
 if (orbitsReady) root.dataset.orbitsReady = 'true'
+if (reducedMotion) root.dataset.copyReady = 'true'
 document.addEventListener('visibilitychange', () => {
   sceneVisible = document.visibilityState === 'visible'
   updateSceneVisibility()
@@ -2234,11 +2203,7 @@ const sourceRayDirection = new THREE.Vector3()
 const sourceWorld = new THREE.Vector3()
 const sourceLocal = new THREE.Vector3()
 const sourceTangentLocal = new THREE.Vector3()
-const replaySourceTangentLocal = new THREE.Vector3()
 const sourceDepthLocal = new THREE.Vector3()
-const replayContactDirectionOrbit = new THREE.Vector3()
-const replayIncomingTangentOrbit = new THREE.Vector3()
-const replayBackOrbitDirection = new THREE.Vector3()
 const orbitWorldQuaternion = new THREE.Quaternion()
 const inverseOrbitWorldQuaternion = new THREE.Quaternion()
 const globeToOrbitMatrix = new THREE.Matrix4()
@@ -2266,7 +2231,17 @@ function animate(time: number) {
   lastFrameTime = currentTime
   const canAnimate = sceneVisible && heroVisible
   if (!canAnimate) return
-  elapsed += delta * (reducedMotion ? 0.2 : 1)
+  const activeStoryUnits = narrativeEnabled && root.dataset.narrativeReady === 'true'
+    ? Number(root.dataset.narrativeUnits ?? 0)
+    : 0
+  const storyIsMoving = activeStoryUnits > S.copyExit
+  if (storyIsMoving) {
+    // A quick scroll may beat the five-second intro. Capture only the settled
+    // sphere/arc pose, never a tunnel shader pose interpreted as a full sphere.
+    introElapsed = introDuration
+    orbitRevealElapsed = orbitRevealDuration
+  }
+  elapsed += (storyIsMoving ? 0 : delta) * (reducedMotion ? 0.2 : 1)
   if (canAnimate && !introStarted) {
     introStarted = true
     root.dataset.introStarted = 'true'
@@ -2275,18 +2250,25 @@ function animate(time: number) {
   frame += 1
   framesInWindow += 1
   const introProgress = reducedMotion ? 1 : Math.min(1, introElapsed / introDuration)
-  const globeReveal = smoothStep(0.86, 0.998, introProgress)
+  const formationProgress = smoothStep(0.42, 1, introProgress)
   root.dataset.introProgress = introProgress.toFixed(3)
+  root.dataset.introSecond = String(Math.floor(introElapsed))
+  root.dataset.introPhase = introProgress < 0.2 ? 'enter' : introProgress < 0.64 ? 'travel' : introProgress < 0.78 ? 'approach' : introProgress < 1 ? 'formation' : 'settled'
+  if (introProgress >= 0.87) root.dataset.copyReady = 'true'
   if (canAnimate && introProgress >= 1) {
     orbitRevealElapsed = Math.min(orbitRevealDuration, orbitRevealElapsed + delta)
   }
   const orbitRevealProgress = reducedMotion
     ? 1
-    : smoothStep(orbitRevealDelay, orbitRevealDuration, orbitRevealElapsed)
+    : Math.max(
+      smoothStep(0.82, 1, introProgress) * 0.28,
+      introProgress >= 1 ? 0.28 + smoothStep(orbitRevealDelay, orbitRevealDuration, orbitRevealElapsed) * 0.72 : 0,
+    )
   root.dataset.orbitReveal = orbitRevealProgress.toFixed(3)
   if (!orbitsReady && orbitRevealElapsed >= orbitCopyRevealDelay) {
     orbitsReady = true
     root.dataset.orbitsReady = 'true'
+    orbitLabels.forEach((label) => { label.inert = false })
   }
 
   const now = performance.now()
@@ -2316,7 +2298,7 @@ function animate(time: number) {
   rig.rotation.z = THREE.MathUtils.damp(rig.rotation.z, -0.035 + pointerMotion.x * 0.009, 3, delta)
   const cameraTargetFov = baseCameraFov * (focusActive ? (root.clientHeight > root.clientWidth ? 0.94 : 0.9) : 1)
   const nextCameraFov = THREE.MathUtils.damp(camera.fov, cameraTargetFov, 3.8, delta)
-  if (Math.abs(nextCameraFov - camera.fov) > 0.0001) {
+  if (!storyIsMoving && Math.abs(nextCameraFov - camera.fov) > 0.0001) {
     camera.fov = nextCameraFov
     camera.updateProjectionMatrix()
   }
@@ -2328,6 +2310,7 @@ function animate(time: number) {
     delta,
   )
   rig.position.y = THREE.MathUtils.damp(rig.position.y, baseRigPosition.y, 3.8, delta)
+  rig.scale.setScalar(baseRigScale)
 
   rig.updateWorldMatrix(true, false)
   rig.getWorldQuaternion(rigWorldQuaternion)
@@ -2381,14 +2364,15 @@ function animate(time: number) {
   globeSurface.material.uniforms.uTime.value = elapsed
   globeSurface.material.uniforms.uFocusDirection.value.copy(focusDirectionLocal)
   globeSurface.material.uniforms.uFocusStrength.value = focusStrength
-  globeSurface.material.uniforms.uReveal.value = globeReveal
-  rimMaterial.uniforms.uReveal.value = smoothStep(0.76, 0.985, introProgress)
+  globeSurface.material.uniforms.uReveal.value = 1
+  rimMaterial.uniforms.uReveal.value = smoothStep(0.83, 1, introProgress)
   rimMaterial.uniforms.uTime.value = elapsed
-  const coreReveal = smoothStep(0.62, 0.94, introProgress)
+  const coreReveal = smoothStep(0.82, 1, introProgress)
   core.visible = coreReveal > 0.001
   coreMaterial.opacity = coreReveal
-  coreMaterial.depthWrite = coreReveal > 0.88
-  wireMaterial.opacity = 0.012 * smoothStep(0.9, 0.998, introProgress)
+  coreMaterial.depthWrite = introProgress >= 1
+  wireMaterial.opacity = 0.004 * smoothStep(0.8, 1, formationProgress)
+  orbitOccluder.visible = coreReveal > 0.5
 
   pulseProgress = Math.min(2, pulseProgress + delta / 1.35)
   const pulseStrength = pulseProgress < 1 ? Math.pow(Math.sin(pulseProgress * Math.PI), 1.2) : 0
@@ -2399,35 +2383,13 @@ function animate(time: number) {
     root.dataset.interaction = globeHovered ? 'hover' : 'idle'
   }
 
-  if (canAnimate && introProgress >= 1) {
-    replayClock += delta
-    if (replayClock >= replayDelay && replayElapsed > replayDuration) {
-      replayClock = 0
-      replayElapsed = 0
-    }
-  }
-  if (canAnimate && replayElapsed <= replayDuration) replayElapsed += delta
-  const replayActive = replayElapsed <= replayDuration
-  const replayProgress = Math.min(1, replayElapsed / replayDuration)
-  root.dataset.replayProgress = replayActive ? replayProgress.toFixed(3) : 'idle'
   const introActive = introProgress < 1
-  const arrivalProgress = introActive ? introProgress : 2
-  const arrivalStrength = introActive ? 1 : 0
-  const replayParticleProgress = replayActive ? replayProgress : 2
-  const resonanceProgress = introActive ? introProgress : replayActive ? replayProgress : 2
-  const resonanceStrength = introActive ? 1 : replayActive ? 0.66 : 0
-  const introWaveProgress = 0.015 + smoothStep(0.79, 0.995, resonanceProgress) * 0.58
-  const introWaveStrength =
-    smoothStep(0.76, 0.84, resonanceProgress) *
-    (1 - smoothStep(0.95, 1, resonanceProgress)) *
-    resonanceStrength
-  const resonancePulse =
-    smoothStep(0.82, 0.9, resonanceProgress) *
-    (1 - smoothStep(0.965, 1, resonanceProgress)) *
-    resonanceStrength
+  // The depth tunnel authors the one-time opening; the settled globe has no recurring inflow.
+  const arrivalProgress = 2
+  const arrivalStrength = 0
   const settledConvergence = introActive ? smoothStep(0.89, 1, introProgress) * 0.16 : 0.16
-  const attachmentStrength = introActive ? smoothStep(0.62, 0.73, introProgress) : 0
-  const attachmentProgress = 0.015 + smoothStep(0.66, 1, introProgress) * 0.64
+  const attachmentStrength = 0
+  const attachmentProgress = 1
   const sourcePlaneDistance = sourceRayPoint
     .copy(rigWorldPosition)
     .sub(cameraWorldPosition)
@@ -2472,15 +2434,6 @@ function animate(time: number) {
     orbit.arrivalMaterial.uniforms.uStrength.value = arrivalStrength
     orbit.arrivalMaterial.uniforms.uSurfaceMode.value = 1
     orbit.arrivalMaterial.uniforms.uTime.value = elapsed
-    orbit.replayMaterial.uniforms.uProgress.value = replayParticleProgress
-    orbit.replayMaterial.uniforms.uStrength.value = replayActive
-      ? orbit.index === 1
-        ? 0.64
-        : orbit.index === 2
-          ? 0.76
-          : 0.48
-      : 0
-    orbit.replayMaterial.uniforms.uTime.value = elapsed
 
     orbit.group.updateWorldMatrix(true, false)
     setSourceWorldFromNdc(sourceAnchors[orbit.index], sourcePlaneDistance)
@@ -2492,19 +2445,12 @@ function animate(time: number) {
       .copy(orbit.index === 2 ? screenUp : screenRight)
       .applyQuaternion(inverseOrbitWorldQuaternion)
       .normalize()
-    replaySourceTangentLocal
-      .copy(screenRight)
-      .applyQuaternion(inverseOrbitWorldQuaternion)
-      .normalize()
     sourceDepthLocal.copy(cameraForward).applyQuaternion(inverseOrbitWorldQuaternion).normalize()
     globeToOrbitMatrix.copy(orbit.group.matrixWorld).invert().multiply(globeGroup.matrixWorld)
     orbit.arrivalMaterial.uniforms.uSourcePosition.value.copy(sourceLocal)
     orbit.arrivalMaterial.uniforms.uSourceTangent.value.copy(sourceTangentLocal)
     orbit.arrivalMaterial.uniforms.uSourceDepth.value.copy(sourceDepthLocal)
     orbit.arrivalMaterial.uniforms.uGlobeToOrbit.value.copy(globeToOrbitMatrix)
-    orbit.replayMaterial.uniforms.uSourcePosition.value.copy(sourceLocal)
-    orbit.replayMaterial.uniforms.uSourceTangent.value.copy(replaySourceTangentLocal)
-    orbit.replayMaterial.uniforms.uSourceDepth.value.copy(sourceDepthLocal)
 
     if (orbit.index === 0) {
       redContactWorldDirection
@@ -2578,31 +2524,6 @@ function animate(time: number) {
         .multiplyScalar(globeRadius * 1.13)
     }
 
-    replayContactDirectionOrbit
-      .copy(orbit.arrivalMaterial.uniforms.uContactPoint.value)
-      .normalize()
-    replayIncomingTangentOrbit
-      .copy(orbit.arrivalMaterial.uniforms.uContactPoint.value)
-      .sub(sourceLocal)
-      .addScaledVector(
-        replayContactDirectionOrbit,
-        -replayIncomingTangentOrbit.dot(replayContactDirectionOrbit),
-      )
-      .normalize()
-    replayBackOrbitDirection
-      .copy(replayContactDirectionOrbit)
-      .multiplyScalar(0.2)
-      .addScaledVector(sourceDepthLocal, 0.96)
-      .addScaledVector(replayIncomingTangentOrbit, 0.1)
-      .normalize()
-    orbit.replayMaterial.uniforms.uContactPoint.value.copy(
-      orbit.arrivalMaterial.uniforms.uContactPoint.value,
-    )
-    orbit.replayMaterial.uniforms.uContactTangent.value.copy(replayIncomingTangentOrbit)
-    orbit.replayMaterial.uniforms.uBackPoint.value
-      .copy(replayBackOrbitDirection)
-      .multiplyScalar(globeRadius * 1.035)
-
     arrivalContactWorld.copy(orbit.arrivalMaterial.uniforms.uContactPoint.value)
     orbit.group.localToWorld(arrivalContactWorld)
     globeGroup.worldToLocal(arrivalContactWorld)
@@ -2638,21 +2559,61 @@ function animate(time: number) {
       arrivalContactTangents[index],
     )
   }
-  globeSurface.material.uniforms.uIntroWaveProgress.value = introWaveProgress
-  globeSurface.material.uniforms.uIntroWaveStrength.value = introWaveStrength
+  globeSurface.material.uniforms.uIntroWaveProgress.value = 1
+  globeSurface.material.uniforms.uIntroWaveStrength.value = 0
   globeSurface.material.uniforms.uAttachmentProgress.value = attachmentProgress
   globeSurface.material.uniforms.uAttachmentStrength.value = attachmentStrength
-  globeSurface.material.uniforms.uConvergence.value = settledConvergence + resonancePulse * 0.72
+  globeSurface.material.uniforms.uConvergence.value = settledConvergence
 
   const totalEnergy = orbitStates.reduce((sum, orbit) => sum + Math.max(0, orbit.energy), 0) / 3
-  const resonanceEnergy = resonancePulse * 0.58
-  globeSurface.material.uniforms.uEnergy.value = totalEnergy + resonanceEnergy
-  rimMaterial.uniforms.uEnergy.value = totalEnergy + resonanceEnergy * 0.5
+  globeSurface.material.uniforms.uEnergy.value = totalEnergy
+  rimMaterial.uniforms.uEnergy.value = totalEnergy
+  tunnel.update(introElapsed, introProgress, camera, rigWorldPosition, globeRadius * rig.scale.x, orbitStates.map((orbit) => orbit.group))
   positionHtmlLabels()
+  if (narrative) {
+    const narrativeProgress = activeStoryUnits / NARRATIVE_DURATION
+    storyUnits.value = activeStoryUnits
+    narrativeAuxiliaryFade.value = 1 - smoothStep(S.copyExit, S.heroAuxiliaryEnd, storyUnits.value)
+    if (storyUnits.value > S.copyExit) {
+      if (!frozenStoryPose) frozenStoryPose = {
+        rigPosition: rig.position.clone(), rigQuaternion: rig.quaternion.clone(), rigScale: rig.scale.clone(), globe: globeGroup.quaternion.clone(),
+        groups: orbitStates.map(orbit => orbit.group.quaternion.clone()),
+        groupPositions: orbitStates.map(orbit => orbit.group.position.clone()),
+        groupScales: orbitStates.map(orbit => orbit.group.scale.clone()),
+        pulses: orbitStates.map(orbit => orbit.pulseTrail.mesh.quaternion.clone()),
+        orbitTime: elapsed,
+      }
+      rig.position.copy(frozenStoryPose.rigPosition)
+      rig.quaternion.copy(frozenStoryPose.rigQuaternion)
+      rig.scale.copy(frozenStoryPose.rigScale)
+      globeGroup.quaternion.copy(frozenStoryPose.globe)
+      orbitStates.forEach((orbit,index) => {
+        orbit.group.quaternion.copy(frozenStoryPose!.groups[index])
+        orbit.group.position.copy(frozenStoryPose!.groupPositions[index])
+        orbit.group.scale.copy(frozenStoryPose!.groupScales[index])
+        orbit.pulseTrail.mesh.quaternion.copy(frozenStoryPose!.pulses[index])
+        orbit.streamMaterial.uniforms.uTime.value = frozenStoryPose!.orbitTime
+      })
+    } else {
+      if (frozenStoryPose) {
+        const rotation = new THREE.Euler().setFromQuaternion(frozenStoryPose.globe)
+        globeRotationX = rotation.x; globeRotationY = rotation.y
+        globeGroup.quaternion.copy(frozenStoryPose.globe)
+      }
+      frozenStoryPose = null
+    }
+    rig.visible = storyUnits.value < S.trailTakeoverEnd
+    core.visible = core.visible && storyUnits.value < S.heroAuxiliaryEnd
+    orbitOccluder.visible = orbitOccluder.visible && storyUnits.value < S.heroOccluderEnd
+    narrative.update(narrativeProgress, elapsed)
+  }
   composer.render()
 
   if (frame === 2) root.dataset.renderReady = 'true'
   if ((diagnosticsSamples === 0 && elapsed > 1.45) || (diagnosticsSamples === 1 && elapsed > 2.9)) {
+    sampleCanvas()
+    diagnosticsSamples += 1
+  } else if (diagnosticsSamples === 2 && introProgress >= 1 && orbitRevealProgress >= 1) {
     sampleCanvas()
     diagnosticsSamples += 1
   } else {
@@ -2674,13 +2635,16 @@ const cleanup = () => {
   cancelOverviewReturn()
   resizeObserver.disconnect()
   heroObserver.disconnect()
+  narrative?.dispose()
   backgroundGeometry.dispose()
   backgroundMaterial.dispose()
+  tunnel.dispose()
   coreGeometry.dispose()
   coreMaterial.dispose()
   wireGeometry.dispose()
   wireMaterial.dispose()
   globeSurface.geometry.dispose()
+  globeDust.geometry.dispose()
   globeSurface.material.dispose()
   rimGeometry.dispose()
   rimMaterial.dispose()
@@ -2695,7 +2659,6 @@ const cleanup = () => {
     orbit.pulseTrail.material.dispose()
     orbit.streamMaterial.dispose()
     orbit.arrivalMaterial.dispose()
-    orbit.replayMaterial.dispose()
     const geometries = new Set<THREE.BufferGeometry>()
     orbit.group.children.forEach((child) => {
       if (child instanceof THREE.Points) geometries.add(child.geometry)
@@ -2703,11 +2666,15 @@ const cleanup = () => {
     geometries.forEach((geometry) => geometry.dispose())
   })
   bloomPass.dispose()
+  outputPass.dispose()
   composer.dispose()
   renderer.dispose()
   delete root.dataset.renderReady
   delete root.dataset.introStarted
   delete root.dataset.orbitsReady
+  delete root.dataset.copyReady
+  delete root.dataset.introPhase
+  delete root.dataset.introSecond
   delete root.dataset.sceneVisible
   delete root.dataset.animationLoop
 }

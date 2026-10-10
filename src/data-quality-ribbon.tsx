@@ -8,6 +8,7 @@ import type { RibbonScene, RibbonInspection } from './quality-ribbon-scene'
 import { JOURNEY_END, JOURNEY_TRACK_SVH, RING_START, ARCHIVE_START, ARCHIVE_SETTLED, CLOSING_START, CLOSING_SETTLED } from './quality-ribbon-story'
 import { RECORD_GROUPS, RECORD_INSPECTIONS, DELIVERY_COMPARISONS } from './quality-ribbon-records'
 import type { RecordContent } from './quality-ribbon-records'
+import { SITE_ROUTES } from './site-routes'
 import './data-quality-ribbon.css'
 import './data-quality-journey.css'
 
@@ -251,7 +252,7 @@ export default function DataQualityRibbon({ journey = false }: { journey?: boole
       <header className="ribbon-journey-closing-heading" aria-hidden={closingOpacity < .01}
         style={{ opacity: closingOpacity, visibility: closingOpacity < .01 ? 'hidden' : 'visible', transform: `translate(-50%, calc(-50% + ${(1 - closingOpacity) * 12}px))` }}>
         <h2>为你的训练目标<br />准备就绪</h2>
-        <p><a href="mailto:hello@kexing.space" aria-label="通过邮件告诉我们你的数据需要">告诉我们你的数据需要，</a><br />我们将带着专业的数据生产与管理方案联系您。</p>
+        <p><a href={SITE_ROUTES.contact} aria-label="填写数据合作需求">告诉我们你的数据需要，</a><br />我们将带着专业的数据生产与管理方案联系您。</p>
       </header>
       <footer className="ribbon-journey-archive-footer" data-closing={closingReady} inert={!archiveReady} aria-hidden={!archiveReady}
         style={{ opacity: archiveOpacity, visibility: archiveOpacity < .01 ? 'hidden' : 'visible' }}>
@@ -275,7 +276,7 @@ export default function DataQualityRibbon({ journey = false }: { journey?: boole
     <div ref={host} className="ribbon-stage" tabIndex={inspecting || !ringInteractive ? -1 : 0} inert={journey && !ringInteractive}
       role="region" aria-label={journey ? browsing ? '自由查看任务记录。拖动或滚动查看，方向键切换，回车打开当前记录，Escape 退出自由查看。' : '连续任务记录。拖动查看，滚动继续，方向键切换，回车打开当前记录。' : '连续卷动的任务记录。拖动或滚动查看，方向键切换，回车打开当前记录。'} />
     {status === 'loading' && <p className="ribbon-status" role="status">正在展开任务记录</p>}
-    {status === 'error' && <div className="ribbon-status" role="alert"><p>画面暂时未能加载</p><button onClick={() => setRetry(value => value + 1)}>重新加载</button><a href="/quality/delivery/records/">查看任务记录</a><a href="mailto:hello@kexing.space">联系我们</a></div>}
+    {status === 'error' && <div className="ribbon-status" role="alert"><p>画面暂时未能加载</p><button onClick={() => setRetry(value => value + 1)}>重新加载</button><a href="/quality/delivery/records/">查看任务记录</a><a href={SITE_ROUTES.contact}>联系我们</a></div>}
     <footer className="ribbon-footer" inert={inspecting || (journey && !ringInteractive)} aria-hidden={inspecting || (journey && !ringInteractive)}
       style={journey ? { opacity: ringOpacity, visibility: ringOpacity < .01 ? 'hidden' : 'visible' } : undefined}>
       <div className="ribbon-caption"><span>DEMO-FR-0084</span><p>果蔬存放至冰箱冷藏室</p></div>

@@ -2,7 +2,7 @@ import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 const Page = /^\/training\/robot-data(?:\/(?:index\.html)?)?$/.test(window.location.pathname)
-  ? lazy(() => import('./ego-data-study.tsx'))
+  ? lazy(() => import('./TrainingDataPage.tsx'))
   : lazy(() => import('./App.tsx'))
 
 createRoot(document.getElementById('root')!).render(

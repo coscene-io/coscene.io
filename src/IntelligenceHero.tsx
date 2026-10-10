@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { mountIntelligenceOrbit } from './intelligence-orbit-wow-study'
+import { HERO_COPY_EXIT, HERO_TRACK_VIEWPORTS, NARRATIVE_DURATION, smoothStoryUnits, storyUnitsFromScroll } from './particle-story-clock'
 import './intelligence-orbit-wow-study.css'
 
-export function IntelligenceHero() {
+export function IntelligenceHero({ narrative = false }: { narrative?: boolean }) {
   const sectionRef = useRef<HTMLElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -13,14 +14,57 @@ export function IntelligenceHero() {
 
     const cleanupScene = mountIntelligenceOrbit(root)
     let animationFrame = 0
+    let storyUnits = 0
+    let clockInitialized = false
+    let clockUpdatedAt = performance.now()
+    let currentViewport = 0
+    const orbitLabels = Array.from(root.querySelectorAll<HTMLElement>('.orbit-label'))
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (narrative) section.style.setProperty('--particle-story-track-units', String(HERO_TRACK_VIEWPORTS))
 
-    const updateExit = () => {
+    const updateExit = (now = performance.now()) => {
       animationFrame = 0
       const navigation = document.querySelector<HTMLElement>('.site-navigation')
       const navigationHeight = navigation
         ? Number.parseFloat(getComputedStyle(navigation).getPropertyValue('--navigation-height')) || 0
         : 0
       const distance = Math.max(0, navigationHeight - section.getBoundingClientRect().top)
+      if (narrative) {
+        const viewport = Math.max(1, window.innerHeight)
+        const viewportChanged = viewport !== currentViewport
+        if (viewportChanged) {
+          currentViewport = viewport
+          section.style.setProperty('--particle-story-viewport', `${viewport}px`)
+        }
+        const requestedTarget = storyUnitsFromScroll(distance, viewport)
+        const narrativeReady = root.dataset.narrativeReady === 'true'
+        // Keep the donor scene intact until the receiving particle pool exists.
+        // Its ready attribute wakes this clock without a loading-time RAF loop.
+        const target = narrativeReady ? requestedTarget : 0
+        // A fast jump into the physical curtain lift must show the completed
+        // chart, not a smoothing tail from an earlier action still catching up.
+        const curtainLifting = target === NARRATIVE_DURATION && root.getBoundingClientRect().bottom < viewport - 0.5
+        storyUnits = !clockInitialized || reducedMotion || viewportChanged || curtainLifting
+          ? target
+          : smoothStoryUnits(storyUnits, target, now - clockUpdatedAt)
+        clockInitialized = true
+        clockUpdatedAt = now
+        const copyExit = Math.min(1, storyUnits / HERO_COPY_EXIT)
+        root.dataset.narrativeTargetUnits = requestedTarget.toFixed(5)
+        root.dataset.narrativeWaiting = String(!narrativeReady && requestedTarget > 0)
+        root.dataset.narrativeUnits = storyUnits.toFixed(5)
+        root.dataset.narrativeProgress = (storyUnits / NARRATIVE_DURATION).toFixed(6)
+        root.dataset.narrativeActive = String(storyUnits > 0.001)
+        root.dataset.narrativeCopyRetired = String(storyUnits >= HERO_COPY_EXIT)
+        root.style.setProperty('--intelligence-exit-content-opacity', (1 - copyExit).toFixed(4))
+        root.style.setProperty('--intelligence-exit-copy-y', `${-18 * copyExit}px`)
+        root.style.pointerEvents = storyUnits > 0.001 ? 'none' : ''
+        orbitLabels.forEach(label => { label.inert = storyUnits > 0.001 || root.dataset.orbitsReady !== 'true' })
+        if ((storyUnits !== target || viewportChanged) && document.visibilityState === 'visible') {
+          animationFrame = window.requestAnimationFrame(updateExit)
+        }
+        return
+      }
       const exitDistance = Math.max(1, section.clientHeight - root.clientHeight)
       const linearProgress = Math.min(1, distance / exitDistance)
       const easedProgress = linearProgress * linearProgress * (3 - 2 * linearProgress)
@@ -37,24 +81,39 @@ export function IntelligenceHero() {
 
     const scheduleExitUpdate = () => {
       if (animationFrame) return
+      clockUpdatedAt = performance.now()
       animationFrame = window.requestAnimationFrame(updateExit)
     }
 
+    const updateVisibility = () => {
+      if (document.visibilityState === 'visible') scheduleExitUpdate()
+      else if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame)
+        animationFrame = 0
+      }
+    }
+
+    const readinessObserver = narrative ? new MutationObserver(scheduleExitUpdate) : null
+    readinessObserver?.observe(root, { attributes: true, attributeFilter: ['data-narrative-ready'] })
     updateExit()
     window.addEventListener('scroll', scheduleExitUpdate, { passive: true })
     window.addEventListener('resize', scheduleExitUpdate)
+    document.addEventListener('visibilitychange', updateVisibility)
 
     return () => {
       window.removeEventListener('scroll', scheduleExitUpdate)
       window.removeEventListener('resize', scheduleExitUpdate)
+      document.removeEventListener('visibilitychange', updateVisibility)
+      readinessObserver?.disconnect()
       if (animationFrame) window.cancelAnimationFrame(animationFrame)
       cleanupScene()
     }
-  }, [])
+  }, [narrative])
 
   return (
-    <section ref={sectionRef} id="top" className="intelligence-home-section" aria-label="三类物理世界数据围绕模型智能持续运行的首屏">
-      <div ref={rootRef} id="intelligence-study">
+    <section ref={sectionRef} id="top" className={`intelligence-home-section${narrative ? ' intelligence-home-section--narrative' : ''}`} aria-label="物理世界的行动、数据与模型进化">
+      {narrative && <div id="platform" className="particle-narrative-anchor" />}
+      <div ref={rootRef} id="intelligence-study" data-particle-narrative={narrative ? 'true' : undefined}>
         <canvas id="intelligence-canvas" aria-hidden="true" />
 
         <header className="intelligence-hero-copy">
@@ -100,6 +159,12 @@ export function IntelligenceHero() {
         </ul>
 
         <div className="scene-vignette" aria-hidden="true" />
+        {narrative && <section className="particle-narrative-accessible" aria-label="Physical AI: actions, data and model improvement">
+          <h2>coScene delivers actions and feedback grounded in physics for the most ambitious physical AI companies.</h2>
+          <p>We partner with robotics leaders, capturing their motion control capabilities in data assets for better training outcomes for our customers.</p>
+          <p>Complex actions in real-world environments strengthen robots’ generalization and robustness.</p>
+          <p>The particle animation illustrates a robot performing tasks, motion becoming training data, and a qualitative model improvement curve. The chart is illustrative and does not display measured benchmark results.</p>
+        </section>}
       </div>
     </section>
   )

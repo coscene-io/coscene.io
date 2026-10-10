@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, ChevronDown, Menu, X } from 'lucide-react'
 import kexingWordmark from './assets/kexing-wordmark.svg'
+import { SITE_ROUTES } from './site-routes'
 import './site-navigation.css'
 
 const navigationGroups = [
@@ -38,16 +39,16 @@ const navigationGroups = [
     imageAlt: '人物从刻行时空办公室会议室外经过',
     imagePosition: '50% 55%',
     links: [
-      { label: '我们的经营理念', description: '从模型需要的数据，反推生产与治理方式', href: '#network' },
-      { label: '迈向更安全', description: '在明确边界内建设可信的数据能力', href: '#network' },
-      { label: '迈向更开放', description: '让更多真实世界数据进入模型迭代', href: '#network' },
+      { label: '我们的经营理念', description: '为物理AI提供真实世界的行动与反馈', href: `${SITE_ROUTES.about}#philosophy` },
+      { label: '连接与协作', description: '连接领先者，用数据推动物理AI进化', href: `${SITE_ROUTES.about}#connection` },
+      { label: '我们的团队', description: '长期专注数据，开放协作', href: `${SITE_ROUTES.about}#team` },
     ],
   },
 ]
 
 const desktopMediaQuery = '(min-width: 961px)'
 
-export function SiteNavigation({ homeHref = '', contactHref = '#contact' }: { homeHref?: string; contactHref?: string } = {}) {
+export function SiteNavigation({ homeHref = '', contactHref = SITE_ROUTES.contact }: { homeHref?: string; contactHref?: string } = {}) {
   const resolveHref = (href: string) => href.startsWith('#') ? `${homeHref}${href}` : href
   const navRef = useRef<HTMLElement>(null)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

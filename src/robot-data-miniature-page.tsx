@@ -88,7 +88,7 @@ export function MiniatureStudy({ study = false }: { study?: boolean }) {
       saved.set('robot', robot); saved.set('light', lighting); saved.set('hand', hand)
       saved.set('step', String(stage)); saved.set('variant', variant)
     }
-    history.replaceState({ miniatureQuery: saved.toString() }, '', `${location.pathname}?${params}`)
+    history.replaceState({ miniatureQuery: saved.toString() }, '', `${location.pathname}?${params}${location.hash}`)
   }, [view, sceneId, robot, hand, lighting, sequence, stage, variant, layout, tone, worldFocus, hasSelection])
   useEffect(() => {
     const restore = (event: PopStateEvent) => {

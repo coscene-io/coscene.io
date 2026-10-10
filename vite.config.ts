@@ -10,6 +10,7 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       input: {
         main: 'index.html',
+        about: 'about/index.html',
         robotData: 'training/robot-data/index.html',
         robotDataSources: 'training/robot-data/sources/index.html',
         qualityDelivery: 'quality/delivery/index.html',

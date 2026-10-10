@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1600" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e4edf2"/>
+      <stop offset=".52" stop-color="#f0f2f3"/>
+      <stop offset="1" stop-color="#dde7ee"/>
+    </linearGradient>
+    <linearGradient id="left" x1="50" y1="0" x2="280" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#acbdc8"/>
+      <stop offset=".6" stop-color="#91a3b0"/>
+      <stop offset="1" stop-color="#b6c5cf"/>
+    </linearGradient>
+    <linearGradient id="middle" x1="860" y1="0" x2="650" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8c9eac"/>
+      <stop offset=".5" stop-color="#a9bac6"/>
+      <stop offset="1" stop-color="#899dab"/>
+    </linearGradient>
+    <filter id="diffuse" x="-30%" y="-25%" width="160%" height="150%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="32"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#base)"/>
+  <g filter="url(#diffuse)">
+    <path d="M-160-170H190C148 90 104 177 204 342C309 514 154 740 108 1150H-235C-110 773 22 551-41 350C-90 194-82 47-160-170Z" fill="url(#left)"/>
+    <path d="M690-160H1035C978 81 790 253 864 448C965 714 755 956 861 1140H471C432 912 700 675 599 456C510 264 681 69 690-160Z" fill="url(#middle)"/>
+    <path d="M1397-170H1770V1120H1360C1589 838 1415 693 1317 474C1229 278 1461 73 1397-170Z" fill="#a7bac7"/>
+  </g>
+</svg>

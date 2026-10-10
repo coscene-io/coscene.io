@@ -36,6 +36,26 @@ body.scene-handoff-study-body #root {
   background: #020305;
 }
 
+/* The opaque particle stage lifts as its sticky track ends, revealing Earth. */
+.scene-handoff-sequence--particles {
+  z-index: 1;
+  margin-top: calc(-1 * var(--particle-story-viewport, 100svh));
+}
+
+.scene-handoff-sequence--particles .scene-handoff-sequence__earth-track {
+  height: calc(3.4 * var(--particle-story-viewport, 100svh));
+  margin-top: 0;
+}
+
+.scene-handoff-sequence--particles .scene-handoff-sequence__earth-pin {
+  height: var(--particle-story-viewport, 100svh);
+  min-height: 0;
+}
+
+.scene-handoff-sequence--particles .scene-handoff-sequence__delivery {
+  margin-top: calc(-1 * var(--particle-story-viewport, 100svh));
+}
+
 .scene-handoff-sequence__earth-pin {
   position: sticky;
   top: 0;
@@ -151,6 +171,10 @@ body.scene-handoff-study-body #root {
 
   .scene-handoff-sequence__earth-track {
     height: 220svh;
+  }
+
+  .scene-handoff-sequence--particles .scene-handoff-sequence__earth-track {
+    height: calc(3.2 * var(--particle-story-viewport, 100svh));
   }
 
   .scene-handoff-sequence__earth-pin {

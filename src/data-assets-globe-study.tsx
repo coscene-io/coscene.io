@@ -1371,11 +1371,13 @@ async function createScene(
 type DataAssetsGlobeStudyProps = {
   embedded?: boolean
   renderEnabled?: boolean
+  warmup?: boolean
 }
 
 export function DataAssetsGlobeStudy({
   embedded = false,
   renderEnabled = true,
+  warmup = false,
 }: DataAssetsGlobeStudyProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -1385,12 +1387,16 @@ export function DataAssetsGlobeStudy({
   const [shouldInitialize, setShouldInitialize] = useState(!embedded)
   const [isSceneVisible, setIsSceneVisible] = useState(!embedded)
   const [activeMediaIndex, setActiveMediaIndex] = useState(0)
-  const sceneActive = isSceneVisible && renderEnabled
+  const sceneActive = (isSceneVisible || warmup) && renderEnabled
   const sceneVisibleRef = useRef(sceneActive)
   sceneVisibleRef.current = sceneActive
   const activeMedia = mediaAssets[activeMediaIndex]
   const activeCityIndex = locationIndexById.get(activeMedia.locationId) ?? 0
   const activeCity = locations[activeCityIndex]
+
+  useEffect(() => {
+    if (warmup) setShouldInitialize(true)
+  }, [warmup])
 
   const activateAdjacentCity = useCallback((direction: -1 | 1) => {
     manualInteractionRef.current = Date.now()

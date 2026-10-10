@@ -8,6 +8,6 @@ const root = import.meta.hot?.data.root ?? createRoot(document.getElementById('r
 if (import.meta.hot) import.meta.hot.data.root = root
 root.render(<div className="quality-delivery-site">
   <a className="quality-delivery-skip" href="/quality/delivery/records/">阅读全部任务记录</a>
-  <SiteNavigation homeHref="/" contactHref="mailto:hello@kexing.space" />
+  <SiteNavigation homeHref="/" />
   <DataQualityRibbon journey />
 </div>)
